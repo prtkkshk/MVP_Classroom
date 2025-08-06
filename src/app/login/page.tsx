@@ -333,15 +333,15 @@ export default function LoginPage() {
                               usernameAvailability.isAvailable === false ? 'border-red-500 focus:border-red-500' : ''
                             }`}
                           />
-                          {/* Username status indicator */}
+                          {/* Username status indicator - Priority: Checking > Available/Taken */}
                           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                             {usernameAvailability.isChecking && (
                               <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                             )}
-                            {usernameAvailability.isAvailable === true && (
+                            {!usernameAvailability.isChecking && usernameAvailability.isAvailable === true && (
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             )}
-                            {usernameAvailability.isAvailable === false && (
+                            {!usernameAvailability.isChecking && usernameAvailability.isAvailable === false && (
                               <XCircle className="h-4 w-4 text-red-500" />
                             )}
                           </div>
