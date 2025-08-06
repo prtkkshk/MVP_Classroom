@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
 
 interface UsernameAvailabilityState {
   isChecking: boolean
@@ -38,26 +37,25 @@ export function useUsernameAvailability(username: string, minLength: number = 3)
     setState(prev => ({ ...prev, isChecking: true, error: null }))
 
     try {
-      // Use a more specific query that should work with RLS
-      const { data, error } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', usernameToCheck)
-        .maybeSingle() // Use maybeSingle instead of single to avoid errors
-
-      if (error) {
-        // If it's a 500 error or RLS policy issue, we'll assume the username is available
+      // Use the API route instead of direct Supabase query
+      const response = await fetch(`/api/check-username?username=${encodeURIComponent(usernameToCheck)}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.warn('Username availability check failed:', errorData)
+        
+        // For API errors, we'll assume the username is available
         // This prevents the feature from breaking completely
-        console.warn('Username availability check failed:', error)
         setState({
           isChecking: false,
           isAvailable: null, // Set to null to not block registration
-          error: null
+          error: errorData.error || 'Failed to check username availability'
         })
         return
       }
 
-      const isAvailable = !data // If no data found, username is available
+      const data = await response.json()
+      const isAvailable = data.isAvailable
       
       setState({
         isChecking: false,
@@ -69,7 +67,7 @@ export function useUsernameAvailability(username: string, minLength: number = 3)
       setState({
         isChecking: false,
         isAvailable: null, // Set to null to not block registration
-        error: null
+        error: 'Network error occurred'
       })
     }
   }, [minLength])

@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useAuthStore from '@/store/authStore'
-import { supabase } from '@/lib/supabase'
+import { useUsernameAvailability } from '@/hooks/use-username-availability'
 import { GraduationCap, Loader2, Eye, EyeOff, UserPlus, Mail, User, Lock, LogIn, CheckCircle, XCircle } from 'lucide-react'
 
 export default function LoginPage() {
@@ -23,13 +23,15 @@ export default function LoginPage() {
     name: '',
     remember: false
   })
-  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   
   const router = useRouter()
   const signIn = useAuthStore(state => state.signIn)
   const signUp = useAuthStore(state => state.signUp)
+  
+  // Use the proper username availability hook
+  const usernameAvailability = useUsernameAvailability(formData.username, 3)
 
   // Load saved credentials on component mount
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function LoginPage() {
     try {
       if (isSignUp) {
         // Check if username is taken before proceeding
-        if (usernameStatus === 'taken') {
+        if (usernameAvailability.isAvailable === false) {
           toast.error('Please choose a different username')
           setIsLoading(false)
           return
@@ -117,36 +119,6 @@ export default function LoginPage() {
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    
-    // Check username availability when username field changes
-    if (field === 'username' && isSignUp && typeof value === 'string') {
-      checkUsernameAvailability(value)
-    }
-  }
-
-  const checkUsernameAvailability = async (username: string) => {
-    if (!username || username.length < 3) {
-      setUsernameStatus('idle')
-      return
-    }
-
-    setUsernameStatus('checking')
-    
-    // Add a small delay to avoid too many API calls
-    await new Promise(resolve => setTimeout(resolve, 300))
-    
-    try {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username)
-        .single()
-
-      setUsernameStatus(existingUser ? 'taken' : 'available')
-    } catch (error) {
-      // If no user found, username is available
-      setUsernameStatus('available')
-    }
   }
 
   return (
@@ -357,32 +329,35 @@ export default function LoginPage() {
                             disabled={isLoading}
                             required
                             className={`h-12 pl-10 pr-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-xl transition-all duration-200 ${
-                              usernameStatus === 'available' ? 'border-green-500 focus:border-green-500' :
-                              usernameStatus === 'taken' ? 'border-red-500 focus:border-red-500' : ''
+                              usernameAvailability.isAvailable === true ? 'border-green-500 focus:border-green-500' :
+                              usernameAvailability.isAvailable === false ? 'border-red-500 focus:border-red-500' : ''
                             }`}
                           />
                           {/* Username status indicator */}
                           <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                            {usernameStatus === 'checking' && (
+                            {usernameAvailability.isChecking && (
                               <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                             )}
-                            {usernameStatus === 'available' && (
+                            {usernameAvailability.isAvailable === true && (
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             )}
-                            {usernameStatus === 'taken' && (
+                            {usernameAvailability.isAvailable === false && (
                               <XCircle className="h-4 w-4 text-red-500" />
                             )}
                           </div>
                         </div>
-                        {/* Username status message */}
-                        {usernameStatus === 'available' && (
+                        {/* Username status message - Priority: Error > Checking > Available/Taken */}
+                        {usernameAvailability.error && (
+                          <p className="text-xs text-red-600 mt-1">{usernameAvailability.error}</p>
+                        )}
+                        {!usernameAvailability.error && usernameAvailability.isChecking && (
+                          <p className="text-xs text-blue-600 mt-1">Checking username availability...</p>
+                        )}
+                        {!usernameAvailability.error && !usernameAvailability.isChecking && usernameAvailability.isAvailable === true && (
                           <p className="text-xs text-green-600 mt-1">✓ Username is available</p>
                         )}
-                        {usernameStatus === 'taken' && (
+                        {!usernameAvailability.error && !usernameAvailability.isChecking && usernameAvailability.isAvailable === false && (
                           <p className="text-xs text-red-600 mt-1">✗ Username is already taken</p>
-                        )}
-                        {usernameStatus === 'checking' && (
-                          <p className="text-xs text-blue-600 mt-1">Checking username availability...</p>
                         )}
                       </div>
                       
