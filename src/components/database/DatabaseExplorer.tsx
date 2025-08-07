@@ -53,17 +53,23 @@ export default function DatabaseExplorerComponent() {
       setIsGeneratingReport(true)
       setError(null)
       
+      console.log('Generating database report...')
       const reportText = await databaseExplorer.generateDatabaseReport()
+      console.log('Report generated, length:', reportText.length)
       setReport(reportText)
       
       // Generate PDF from the report
+      console.log('Starting PDF generation...')
       await generatePDFReport(reportText)
       
       // Show success feedback
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 3000) // Hide after 3 seconds
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate report')
+      console.error('Error in generateReport:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate report'
+      setError(errorMessage)
+      console.error('Detailed error:', errorMessage)
     } finally {
       setIsGeneratingReport(false)
     }
@@ -71,63 +77,181 @@ export default function DatabaseExplorerComponent() {
 
   const generatePDFReport = async (reportText: string) => {
     try {
-      // Create a temporary div to render the markdown content
-      const tempDiv = document.createElement('div')
-      tempDiv.style.position = 'absolute'
-      tempDiv.style.left = '-9999px'
-      tempDiv.style.top = '0'
-      tempDiv.style.width = '800px'
-      tempDiv.style.padding = '40px'
-      tempDiv.style.fontFamily = 'Arial, sans-serif'
-      tempDiv.style.fontSize = '12px'
-      tempDiv.style.lineHeight = '1.6'
-      tempDiv.style.backgroundColor = 'white'
-      tempDiv.style.color = 'black'
+      console.log('Starting PDF generation...')
       
-      // Convert markdown to HTML (simple conversion)
-      const htmlContent = convertMarkdownToHTML(reportText)
-      tempDiv.innerHTML = htmlContent
-      
-      document.body.appendChild(tempDiv)
-      
-      // Generate PDF
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
-      })
-      
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      
-      const imgWidth = 210 // A4 width in mm
-      const pageHeight = 295 // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      let heightLeft = imgHeight
-      let position = 0
-      
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-      
-      // Add additional pages if needed
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
+      // Try the HTML2Canvas approach first
+      try {
+        await generatePDFWithHTML2Canvas(reportText)
+        return
+      } catch (html2canvasError) {
+        console.warn('HTML2Canvas approach failed, trying fallback method:', html2canvasError)
       }
       
-      // Download the PDF
-      pdf.save('supabase-database-report.pdf')
+      // Fallback: Generate simple text-based PDF
+      await generateSimplePDF(reportText)
       
-      // Clean up
-      document.body.removeChild(tempDiv)
     } catch (error) {
       console.error('Error generating PDF:', error)
-      throw new Error('Failed to generate PDF report')
+      throw new Error(`Failed to generate PDF report: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
+  }
+
+  const generatePDFWithHTML2Canvas = async (reportText: string) => {
+    // Create a temporary div to render the markdown content
+    const tempDiv = document.createElement('div')
+    tempDiv.style.position = 'absolute'
+    tempDiv.style.left = '-9999px'
+    tempDiv.style.top = '0'
+    tempDiv.style.width = '800px'
+    tempDiv.style.padding = '40px'
+    tempDiv.style.fontFamily = 'Arial, sans-serif'
+    tempDiv.style.fontSize = '12px'
+    tempDiv.style.lineHeight = '1.6'
+    tempDiv.style.backgroundColor = 'white'
+    tempDiv.style.color = 'black'
+    tempDiv.style.border = '1px solid #ccc'
+    
+    // Convert markdown to HTML (simple conversion)
+    console.log('Converting markdown to HTML...')
+    const htmlContent = convertMarkdownToHTML(reportText)
+    tempDiv.innerHTML = htmlContent
+    
+    // Add to DOM
+    document.body.appendChild(tempDiv)
+    
+    // Wait a bit for rendering
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    console.log('Generating canvas from HTML...')
+    // Generate PDF with more conservative settings
+    const canvas = await html2canvas(tempDiv, {
+      scale: 1, // Reduced scale for better performance
+      useCORS: false, // Disable CORS for local content
+      allowTaint: false, // Disable taint for better compatibility
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: 800,
+      height: tempDiv.scrollHeight,
+      scrollX: 0,
+      scrollY: 0
+    })
+    
+    console.log('Canvas generated, creating PDF...')
+    const imgData = canvas.toDataURL('image/png', 0.8) // Reduced quality for better performance
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    
+    const imgWidth = 210 // A4 width in mm
+    const pageHeight = 295 // A4 height in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    let heightLeft = imgHeight
+    let position = 0
+    
+    console.log('Adding first page to PDF...')
+    // Add first page
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+    heightLeft -= pageHeight
+    
+    // Add additional pages if needed
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight
+      pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+    }
+    
+    console.log('Saving PDF...')
+    // Download the PDF
+    pdf.save('supabase-database-report.pdf')
+    
+    // Clean up
+    document.body.removeChild(tempDiv)
+    console.log('PDF generation completed successfully!')
+  }
+
+  const generateSimplePDF = async (reportText: string) => {
+    console.log('Generating simple text-based PDF...')
+    
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 20
+    const lineHeight = 7
+    let yPosition = margin
+    
+    // Set font
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(12)
+    
+    // Split text into lines
+    const lines = reportText.split('\n')
+    
+    for (const line of lines) {
+      // Check if we need a new page
+      if (yPosition > pageHeight - margin) {
+        pdf.addPage()
+        yPosition = margin
+      }
+      
+      // Handle headers
+      if (line.startsWith('# ')) {
+        pdf.setFontSize(16)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(line.substring(2), margin, yPosition)
+        yPosition += lineHeight + 5
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'normal')
+        continue
+      }
+      
+      if (line.startsWith('## ')) {
+        pdf.setFontSize(14)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(line.substring(3), margin, yPosition)
+        yPosition += lineHeight + 3
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'normal')
+        continue
+      }
+      
+      if (line.startsWith('### ')) {
+        pdf.setFontSize(13)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(line.substring(4), margin, yPosition)
+        yPosition += lineHeight + 2
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'normal')
+        continue
+      }
+      
+      // Handle bold text
+      if (line.includes('**')) {
+        const parts = line.split('**')
+        let xPos = margin
+        for (let i = 0; i < parts.length; i++) {
+          if (i % 2 === 1) { // Bold text
+            pdf.setFont('helvetica', 'bold')
+          } else { // Normal text
+            pdf.setFont('helvetica', 'normal')
+          }
+          pdf.text(parts[i], xPos, yPosition)
+          xPos += pdf.getTextWidth(parts[i])
+        }
+        yPosition += lineHeight
+        pdf.setFont('helvetica', 'normal')
+        continue
+      }
+      
+      // Regular text
+      if (line.trim()) {
+        pdf.text(line, margin, yPosition)
+        yPosition += lineHeight
+      } else {
+        yPosition += lineHeight / 2 // Small gap for empty lines
+      }
+    }
+    
+    console.log('Saving simple PDF...')
+    pdf.save('supabase-database-report.pdf')
+    console.log('Simple PDF generation completed successfully!')
   }
 
   const convertMarkdownToHTML = (markdown: string): string => {

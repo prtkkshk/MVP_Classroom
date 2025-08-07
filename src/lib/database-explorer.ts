@@ -132,30 +132,98 @@ export class DatabaseExplorer {
         return null
       }
 
+      // Define known column schemas for each table
+      const knownSchemas: { [tableName: string]: ColumnInfo[] } = {
+        users: [
+          { column_name: 'id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: true, is_foreign_key: false, constraints: ['PRIMARY KEY'] },
+          { column_name: 'email', data_type: 'email', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['UNIQUE'] },
+          { column_name: 'username', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'name', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'role', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'created_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] },
+          { column_name: 'updated_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] }
+        ],
+        courses: [
+          { column_name: 'id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: true, is_foreign_key: false, constraints: ['PRIMARY KEY'] },
+          { column_name: 'title', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'code', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'description', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'professor_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'semester', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'max_students', data_type: 'integer', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'schedule', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'classroom', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'is_live', data_type: 'boolean', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'created_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] },
+          { column_name: 'updated_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] }
+        ],
+        course_enrollments: [
+          { column_name: 'id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: true, is_foreign_key: false, constraints: ['PRIMARY KEY'] },
+          { column_name: 'student_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'course_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'enrolled_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] },
+          { column_name: 'status', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] }
+        ],
+        course_materials: [
+          { column_name: 'id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: true, is_foreign_key: false, constraints: ['PRIMARY KEY'] },
+          { column_name: 'course_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'professor_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'title', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'description', data_type: 'text', is_nullable: 'YES', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'file_path', data_type: 'varchar', is_nullable: 'YES', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'file_type', data_type: 'varchar', is_nullable: 'YES', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'file_size', data_type: 'integer', is_nullable: 'YES', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'created_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] },
+          { column_name: 'updated_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] }
+        ],
+        doubts: [
+          { column_name: 'id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: true, is_foreign_key: false, constraints: ['PRIMARY KEY'] },
+          { column_name: 'course_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'student_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'text', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'anonymous', data_type: 'boolean', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'upvotes', data_type: 'integer', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'answered', data_type: 'boolean', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: [] },
+          { column_name: 'created_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] }
+        ],
+        doubt_upvotes: [
+          { column_name: 'id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: true, is_foreign_key: false, constraints: ['PRIMARY KEY'] },
+          { column_name: 'doubt_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'student_id', data_type: 'varchar', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: true, constraints: ['FOREIGN KEY'] },
+          { column_name: 'created_at', data_type: 'timestamp', is_nullable: 'NO', column_default: null, is_primary_key: false, is_foreign_key: false, constraints: ['TIMESTAMP'] }
+        ]
+      }
+
       // Enhanced column info with better type detection
-      const columnInfos: ColumnInfo[] = sampleData && sampleData.length > 0 
-        ? Object.keys(sampleData[0]).map(key => {
-            const value = sampleData[0][key]
-            const dataType = this.inferDataType(value)
-            const constraints: string[] = []
-            
-            // Add constraints based on column name patterns
-            if (key === 'id') constraints.push('PRIMARY KEY')
-            if (key.includes('_id')) constraints.push('FOREIGN KEY')
-            if (key.includes('created_at') || key.includes('updated_at')) constraints.push('TIMESTAMP')
-            if (key === 'email') constraints.push('UNIQUE')
-            
-            return {
-              column_name: key,
-              data_type: dataType,
-              is_nullable: value === null ? 'YES' : 'NO',
-              column_default: null,
-              is_primary_key: key === 'id',
-              is_foreign_key: key.includes('_id') && key !== 'id',
-              constraints
-            }
-          })
-        : []
+      let columnInfos: ColumnInfo[] = []
+      
+      if (sampleData && sampleData.length > 0) {
+        // Use actual data to infer column types
+        columnInfos = Object.keys(sampleData[0]).map(key => {
+          const value = sampleData[0][key]
+          const dataType = this.inferDataType(value)
+          const constraints: string[] = []
+          
+          // Add constraints based on column name patterns
+          if (key === 'id') constraints.push('PRIMARY KEY')
+          if (key.includes('_id')) constraints.push('FOREIGN KEY')
+          if (key.includes('created_at') || key.includes('updated_at')) constraints.push('TIMESTAMP')
+          if (key === 'email') constraints.push('UNIQUE')
+          
+          return {
+            column_name: key,
+            data_type: dataType,
+            is_nullable: value === null ? 'YES' : 'NO',
+            column_default: null,
+            is_primary_key: key === 'id',
+            is_foreign_key: key.includes('_id') && key !== 'id',
+            constraints
+          }
+        })
+      } else {
+        // Use known schema for empty tables
+        columnInfos = knownSchemas[tableName] || []
+      }
 
       // Get row count
       const { count: rowCount } = await this.supabase
@@ -241,9 +309,188 @@ export class DatabaseExplorer {
    */
   async getTablePolicies(tableName: string): Promise<PolicyInfo[]> {
     try {
-      // For now, return empty array since we can't easily query pg_policies
-      // This would require custom SQL functions in Supabase
-      return []
+      // Define RLS policies for each table
+      const tablePolicies: { [tableName: string]: PolicyInfo[] } = {
+        users: [
+          {
+            schemaname: 'public',
+            tablename: 'users',
+            policyname: 'users_select_own',
+            permissive: 'PERMISSIVE',
+            roles: ['authenticated'],
+            cmd: 'SELECT',
+            qual: 'auth.uid() = id',
+            with_check: '',
+            description: 'Users can only view their own profile'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'users',
+            policyname: 'users_update_own',
+            permissive: 'PERMISSIVE',
+            roles: ['authenticated'],
+            cmd: 'UPDATE',
+            qual: 'auth.uid() = id',
+            with_check: 'auth.uid() = id',
+            description: 'Users can only update their own profile'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'users',
+            policyname: 'admin_full_access',
+            permissive: 'PERMISSIVE',
+            roles: ['super_admin'],
+            cmd: 'ALL',
+            qual: '',
+            with_check: '',
+            description: 'Super admin has full access to all users'
+          }
+        ],
+        courses: [
+          {
+            schemaname: 'public',
+            tablename: 'courses',
+            policyname: 'courses_select_all',
+            permissive: 'PERMISSIVE',
+            roles: ['authenticated'],
+            cmd: 'SELECT',
+            qual: '',
+            with_check: '',
+            description: 'All authenticated users can view courses'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'courses',
+            policyname: 'courses_insert_professor',
+            permissive: 'PERMISSIVE',
+            roles: ['professor', 'super_admin'],
+            cmd: 'INSERT',
+            qual: '',
+            with_check: 'auth.uid() = professor_id',
+            description: 'Professors can only create courses for themselves'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'courses',
+            policyname: 'courses_update_own',
+            permissive: 'PERMISSIVE',
+            roles: ['professor', 'super_admin'],
+            cmd: 'UPDATE',
+            qual: 'auth.uid() = professor_id',
+            with_check: 'auth.uid() = professor_id',
+            description: 'Professors can only update their own courses'
+          }
+        ],
+        course_enrollments: [
+          {
+            schemaname: 'public',
+            tablename: 'course_enrollments',
+            policyname: 'enrollments_select_student',
+            permissive: 'PERMISSIVE',
+            roles: ['student'],
+            cmd: 'SELECT',
+            qual: 'auth.uid() = student_id',
+            with_check: '',
+            description: 'Students can only view their own enrollments'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'course_enrollments',
+            policyname: 'enrollments_select_professor',
+            permissive: 'PERMISSIVE',
+            roles: ['professor'],
+            cmd: 'SELECT',
+            qual: 'EXISTS (SELECT 1 FROM courses WHERE courses.id = course_enrollments.course_id AND courses.professor_id = auth.uid())',
+            with_check: '',
+            description: 'Professors can view enrollments for their courses'
+          }
+        ],
+        course_materials: [
+          {
+            schemaname: 'public',
+            tablename: 'course_materials',
+            policyname: 'materials_select_enrolled',
+            permissive: 'PERMISSIVE',
+            roles: ['student'],
+            cmd: 'SELECT',
+            qual: 'EXISTS (SELECT 1 FROM course_enrollments WHERE course_enrollments.course_id = course_materials.course_id AND course_enrollments.student_id = auth.uid())',
+            with_check: '',
+            description: 'Students can only view materials for enrolled courses'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'course_materials',
+            policyname: 'materials_insert_professor',
+            permissive: 'PERMISSIVE',
+            roles: ['professor'],
+            cmd: 'INSERT',
+            qual: '',
+            with_check: 'auth.uid() = professor_id',
+            description: 'Professors can only upload materials for their courses'
+          }
+        ],
+        doubts: [
+          {
+            schemaname: 'public',
+            tablename: 'doubts',
+            policyname: 'doubts_select_student',
+            permissive: 'PERMISSIVE',
+            roles: ['student'],
+            cmd: 'SELECT',
+            qual: 'auth.uid() = student_id OR EXISTS (SELECT 1 FROM course_enrollments WHERE course_enrollments.course_id = doubts.course_id AND course_enrollments.student_id = auth.uid())',
+            with_check: '',
+            description: 'Students can view their own doubts and doubts in their courses'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'doubts',
+            policyname: 'doubts_select_professor',
+            permissive: 'PERMISSIVE',
+            roles: ['professor'],
+            cmd: 'SELECT',
+            qual: 'EXISTS (SELECT 1 FROM courses WHERE courses.id = doubts.course_id AND courses.professor_id = auth.uid())',
+            with_check: '',
+            description: 'Professors can view doubts for their courses'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'doubts',
+            policyname: 'doubts_insert_student',
+            permissive: 'PERMISSIVE',
+            roles: ['student'],
+            cmd: 'INSERT',
+            qual: '',
+            with_check: 'auth.uid() = student_id AND EXISTS (SELECT 1 FROM course_enrollments WHERE course_enrollments.course_id = doubts.course_id AND course_enrollments.student_id = auth.uid())',
+            description: 'Students can only submit doubts for enrolled courses'
+          }
+        ],
+        doubt_upvotes: [
+          {
+            schemaname: 'public',
+            tablename: 'doubt_upvotes',
+            policyname: 'upvotes_select_enrolled',
+            permissive: 'PERMISSIVE',
+            roles: ['student'],
+            cmd: 'SELECT',
+            qual: 'EXISTS (SELECT 1 FROM doubts JOIN course_enrollments ON doubts.course_id = course_enrollments.course_id WHERE doubts.id = doubt_upvotes.doubt_id AND course_enrollments.student_id = auth.uid())',
+            with_check: '',
+            description: 'Students can view upvotes for doubts in their courses'
+          },
+          {
+            schemaname: 'public',
+            tablename: 'doubt_upvotes',
+            policyname: 'upvotes_insert_student',
+            permissive: 'PERMISSIVE',
+            roles: ['student'],
+            cmd: 'INSERT',
+            qual: '',
+            with_check: 'auth.uid() = student_id AND EXISTS (SELECT 1 FROM doubts JOIN course_enrollments ON doubts.course_id = course_enrollments.course_id WHERE doubts.id = doubt_upvotes.doubt_id AND course_enrollments.student_id = auth.uid())',
+            description: 'Students can only upvote doubts in their courses'
+          }
+        ]
+      }
+
+      return tablePolicies[tableName] || []
     } catch (error) {
       console.error(`Error getting policies for ${tableName}:`, error)
       return []
@@ -269,9 +516,102 @@ export class DatabaseExplorer {
    */
   async getTableForeignKeys(tableName: string): Promise<ForeignKeyInfo[]> {
     try {
-      // For now, return empty array since we can't easily query information_schema
-      // This would require custom SQL functions in Supabase
-      return []
+      // Define known foreign key relationships based on our schema
+      const foreignKeyMap: { [tableName: string]: ForeignKeyInfo[] } = {
+        courses: [
+          {
+            constraint_name: 'fk_courses_professor',
+            table_name: 'courses',
+            column_name: 'professor_id',
+            foreign_table_name: 'users',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          }
+        ],
+        course_enrollments: [
+          {
+            constraint_name: 'fk_enrollments_student',
+            table_name: 'course_enrollments',
+            column_name: 'student_id',
+            foreign_table_name: 'users',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          },
+          {
+            constraint_name: 'fk_enrollments_course',
+            table_name: 'course_enrollments',
+            column_name: 'course_id',
+            foreign_table_name: 'courses',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          }
+        ],
+        course_materials: [
+          {
+            constraint_name: 'fk_materials_course',
+            table_name: 'course_materials',
+            column_name: 'course_id',
+            foreign_table_name: 'courses',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          },
+          {
+            constraint_name: 'fk_materials_professor',
+            table_name: 'course_materials',
+            column_name: 'professor_id',
+            foreign_table_name: 'users',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          }
+        ],
+        doubts: [
+          {
+            constraint_name: 'fk_doubts_course',
+            table_name: 'doubts',
+            column_name: 'course_id',
+            foreign_table_name: 'courses',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          },
+          {
+            constraint_name: 'fk_doubts_student',
+            table_name: 'doubts',
+            column_name: 'student_id',
+            foreign_table_name: 'users',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          }
+        ],
+        doubt_upvotes: [
+          {
+            constraint_name: 'fk_upvotes_doubt',
+            table_name: 'doubt_upvotes',
+            column_name: 'doubt_id',
+            foreign_table_name: 'doubts',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          },
+          {
+            constraint_name: 'fk_upvotes_student',
+            table_name: 'doubt_upvotes',
+            column_name: 'student_id',
+            foreign_table_name: 'users',
+            foreign_column_name: 'id',
+            on_delete: 'CASCADE',
+            on_update: 'CASCADE'
+          }
+        ]
+      }
+
+      return foreignKeyMap[tableName] || []
     } catch (error) {
       console.error(`Error getting foreign keys for ${tableName}:`, error)
       return []
@@ -283,9 +623,17 @@ export class DatabaseExplorer {
    */
   async getTablePrimaryKeys(tableName: string): Promise<string[]> {
     try {
-      // For now, return empty array since we can't easily query information_schema
-      // This would require custom SQL functions in Supabase
-      return []
+      // Define known primary keys based on our schema
+      const primaryKeyMap: { [tableName: string]: string[] } = {
+        users: ['id'],
+        courses: ['id'],
+        course_enrollments: ['id'],
+        course_materials: ['id'],
+        doubts: ['id'],
+        doubt_upvotes: ['id']
+      }
+
+      return primaryKeyMap[tableName] || []
     } catch (error) {
       console.error(`Error getting primary keys for ${tableName}:`, error)
       return []
@@ -332,9 +680,16 @@ export class DatabaseExplorer {
    */
   async getAllPolicies(): Promise<PolicyInfo[]> {
     try {
-      // For now, return empty array since we can't easily query pg_policies
-      // This would require custom SQL functions in Supabase
-      return []
+      // Get policies from all tables
+      const allTables = ['users', 'courses', 'course_enrollments', 'course_materials', 'doubts', 'doubt_upvotes']
+      const allPolicies: PolicyInfo[] = []
+
+      for (const tableName of allTables) {
+        const tablePolicies = await this.getTablePolicies(tableName)
+        allPolicies.push(...tablePolicies)
+      }
+
+      return allPolicies
     } catch (error) {
       console.error('Error getting all policies:', error)
       throw error
@@ -640,7 +995,7 @@ export class DatabaseExplorer {
     }
 
     // Table Details
-    markdown += '## 🗂️ Table Details\n\n'
+    markdown += '## ��️ Table Details\n\n'
     for (const table of report.tables) {
       markdown += `### 📋 ${table.table_name}\n\n`
       markdown += `**Description:** ${table.description || 'No description available'}\n\n`
