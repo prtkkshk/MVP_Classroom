@@ -38,11 +38,12 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     // Calculate stats from enrolled courses
+    const totalStudents = enrolledCourses.reduce((acc, course) => acc + (course.enrolled_students || 0), 0)
     setStats({
       totalCourses: enrolledCourses.length,
-      totalQuestions: enrolledCourses.reduce((acc, course) => acc + (course.enrolled_students || 0), 0),
-      studyHours: enrolledCourses.length * 3, // Mock data
-      assignmentsDue: enrolledCourses.length * 2 // Mock data
+      totalQuestions: totalStudents, // This will be replaced with actual doubt count
+      studyHours: enrolledCourses.length * 3, // Mock data - will be replaced with actual study time
+      assignmentsDue: enrolledCourses.length * 2 // Mock data - will be replaced with actual assignments
     })
   }, [enrolledCourses])
 

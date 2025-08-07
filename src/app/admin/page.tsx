@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import MainLayout from '@/components/layout/MainLayout'
 import useAuthStore from '@/store/authStore'
 import { Shield, UserPlus, Users, BookOpen, GraduationCap, Loader2 } from 'lucide-react'
 
@@ -72,22 +73,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <MainLayout
+      title="Admin Dashboard"
+      description="Manage professors and oversee the platform"
+      showBreadcrumb={false}
+    >
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Shield className="w-6 h-6 text-blue-600" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          </div>
-          <p className="text-gray-600">Manage professors and oversee the platform</p>
-        </motion.div>
 
         {/* Stats Cards */}
         <motion.div
@@ -282,6 +273,6 @@ export default function AdminPage() {
           </Card>
         </motion.div>
       </div>
-    </div>
+    </MainLayout>
   )
 } 

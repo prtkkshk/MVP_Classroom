@@ -712,35 +712,8 @@ module.exports = {
 
 ---
 
-## 8. Getting Started & Implementation
 
-### Prerequisites
-- Node.js 18+ and npm/yarn
-- Supabase account and project
-- OpenAI API key (for future AI features)
-- Vercel account for deployment
 
-### Initial Setup Commands
-```bash
-# Clone and setup
-npx create-next-app@latest infralearn --typescript --tailwind --eslint
-cd infralearn
-
-# Install dependencies
-npm install @supabase/supabase-js @supabase/auth-ui-react
-npm install lucide-react @radix-ui/react-dialog @radix-ui/react-dropdown-menu
-npm install recharts zustand @tanstack/react-query
-npm install framer-motion class-variance-authority
-npm install @types/node @types/react @types/react-dom
-
-# Setup ShadCN UI
-npx shadcn-ui@latest init
-npx shadcn-ui@latest add button input card dialog dropdown-menu tabs table badge avatar form select textarea checkbox alert toast progress sheet
-
-# Environment setup
-cp .env.example .env.local
-# Add your Supabase and OpenAI credentials
-```
 
 ### Development Phases
 

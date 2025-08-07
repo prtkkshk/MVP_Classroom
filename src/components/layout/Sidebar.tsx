@@ -12,7 +12,8 @@ import {
   Users,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Database
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -33,6 +34,7 @@ const sidebarItems = {
     { icon: Home, label: 'Dashboard', href: '/admin' },
     { icon: Users, label: 'User Management', href: '/admin/users' },
     { icon: BookOpen, label: 'Course Oversight', href: '/admin/courses' },
+    { icon: Database, label: 'Database', href: '/admin/database' },
     { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ]
 }

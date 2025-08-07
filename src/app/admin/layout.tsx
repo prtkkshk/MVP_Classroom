@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import useAuthStore from '@/store/authStore'
 import Sidebar from '@/components/layout/Sidebar'
@@ -12,6 +12,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter()
   const { user, isAuthenticated, isLoading } = useAuthStore()
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -38,8 +39,10 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <main className="lg:ml-64 min-h-screen">
+      <Sidebar onCollapsedChange={setIsSidebarCollapsed} />
+      <main className={`min-h-screen transition-all duration-300 ease-in-out ${
+        isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
+      }`}>
         <div className="lg:pt-0 pt-16">
           {children}
         </div>

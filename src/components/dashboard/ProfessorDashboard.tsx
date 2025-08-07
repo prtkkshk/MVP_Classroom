@@ -37,11 +37,12 @@ export default function ProfessorDashboard() {
   useEffect(() => {
     // Calculate stats from courses
     const totalStudents = courses.reduce((acc, course) => acc + (course.enrolled_students || 0), 0)
+    const activeCourses = courses.filter(course => course.is_live).length
     setStats({
       totalStudents,
       activeCourses: courses.length,
-      weeklyQuestions: courses.length * 5, // Mock data
-      engagementRate: Math.round((totalStudents / (courses.length * 50)) * 100) || 87
+      weeklyQuestions: courses.length * 5, // Mock data - will be replaced with actual doubt count
+      engagementRate: Math.round((totalStudents / Math.max(courses.length * 50, 1)) * 100) || 87
     })
   }, [courses])
 
