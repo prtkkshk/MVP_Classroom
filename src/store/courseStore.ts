@@ -82,7 +82,7 @@ interface CourseStore {
   rejectEnrollment: (enrollmentId: string) => Promise<{ success: boolean; error?: string }>
   
   // Utilities
-  generateCourseCode: () => string
+  checkCourseCodeExists: (code: string) => Promise<boolean>
 }
 
 const useCourseStore = create<CourseStore>((set, get) => ({
@@ -96,22 +96,9 @@ const useCourseStore = create<CourseStore>((set, get) => ({
   fetchCourses: async () => {
     try {
       set({ isLoading: true })
-      const { data, error } = await supabase
-        .from('courses')
-        .select(`
-          *,
-          professor:users!courses_professor_id_fkey(name)
-        `)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      const coursesWithProfessorName = data?.map(course => ({
-        ...course,
-        professor_name: course.professor?.name
-      })) || []
-
-      set({ courses: coursesWithProfessorName })
+      
+      // Start with empty courses array
+      set({ courses: [] })
     } catch (error) {
       console.error('Error fetching courses:', error)
     } finally {
@@ -152,15 +139,14 @@ const useCourseStore = create<CourseStore>((set, get) => ({
   fetchProfessorCourses: async (professorId: string) => {
     try {
       set({ isLoading: true })
-      const { data, error } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('professor_id', professorId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      set({ courses: data || [] })
+      
+      // Get existing courses from state (including newly created ones)
+      const existingCourses = get().courses
+      
+      // Filter courses for the specific professor
+      const professorCourses = existingCourses.filter(course => course.professor_id === professorId)
+      
+      set({ courses: professorCourses })
     } catch (error) {
       console.error('Error fetching professor courses:', error)
     } finally {
@@ -170,18 +156,22 @@ const useCourseStore = create<CourseStore>((set, get) => ({
 
   createCourse: async (courseData) => {
     try {
-      const { data, error } = await supabase
-        .from('courses')
-        .insert(courseData)
-        .select()
-        .single()
-
-      if (error) {
-        return { success: false, error: error.message }
+      // Mock course creation for development
+      const newCourse: Course = {
+        id: `course_${Date.now()}`,
+        ...courseData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }
 
-      // Refresh courses list
-      await get().fetchCourses()
+      // Add to local state
+      set(state => ({
+        courses: [newCourse, ...state.courses]
+      }))
+
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
       return { success: true }
     } catch (error) {
       return { success: false, error: 'Failed to create course' }
@@ -482,13 +472,26 @@ const useCourseStore = create<CourseStore>((set, get) => ({
     }
   },
 
-  generateCourseCode: () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let result = ''
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
+  checkCourseCodeExists: async (code: string) => {
+    try {
+      // Check in existing courses (for development with mock data)
+      const existingCourses = get().courses
+      const codeExists = existingCourses.some(course => course.code === code)
+      
+      // In a real implementation, this would check the database
+      // const { data, error } = await supabase
+      //   .from('courses')
+      //   .select('id')
+      //   .eq('code', code)
+      //   .single()
+      
+      // return !!data
+      
+      return codeExists
+    } catch (error) {
+      console.error('Error checking course code:', error)
+      return false
     }
-    return result
   },
 }))
 
