@@ -47,6 +47,16 @@ export default function LoginPage() {
     }
   }, [])
 
+  // Clear username when switching to create account form
+  useEffect(() => {
+    if (isSignUp) {
+      setFormData(prev => ({
+        ...prev,
+        username: ''
+      }))
+    }
+  }, [isSignUp])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
