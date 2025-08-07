@@ -128,49 +128,49 @@ export default function LoginPage() {
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 relative overflow-hidden"
+        className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-black/10" />
-        <div className="relative z-10 flex flex-col justify-center px-12 text-white">
+        <div className="absolute inset-0 bg-white/20" />
+        <div className="relative z-10 flex flex-col justify-center px-12 text-gray-800">
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                <GraduationCap className="w-8 h-8" />
+              <div className="p-3 bg-blue-100/50 rounded-xl backdrop-blur-sm">
+                <GraduationCap className="w-8 h-8 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">InfraLearn</h1>
-                <p className="text-blue-100 text-sm">Digital Classroom Infrastructure</p>
+                <h1 className="text-3xl font-bold text-gray-900">InfraLearn</h1>
+                <p className="text-gray-600 text-sm">Digital Classroom Infrastructure</p>
               </div>
             </div>
             
-            <h2 className="text-4xl font-bold mb-4 leading-tight">
+            <h2 className="text-4xl font-bold mb-4 leading-tight text-gray-900">
               Transform Your<br />
               Learning Experience
             </h2>
-            <p className="text-xl text-blue-100 mb-8">
+            <p className="text-xl text-gray-700 mb-8">
               Connect students and professors in an interactive digital environment designed for higher education.
             </p>
             
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-white rounded-full" />
-                <span className="text-blue-100">Real-time doubt resolution</span>
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="text-gray-700">Real-time doubt resolution</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-white rounded-full" />
-                <span className="text-blue-100">Interactive live sessions</span>
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="text-gray-700">Interactive course materials</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-white rounded-full" />
-                <span className="text-blue-100">Comprehensive course management</span>
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="text-gray-700">Comprehensive course management</span>
               </div>
             </div>
           </div>
         </div>
         
         {/* Decorative elements */}
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/10 rounded-full blur-xl" />
-        <div className="absolute bottom-20 left-20 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
+        <div className="absolute top-20 right-20 w-32 h-32 bg-blue-200/30 rounded-full blur-xl" />
+        <div className="absolute bottom-20 left-20 w-24 h-24 bg-indigo-200/20 rounded-full blur-2xl" />
       </motion.div>
 
       {/* Right Side - Login Form */}
@@ -199,17 +199,17 @@ export default function LoginPage() {
              
              <CardContent>
                                <Tabs value={isSignUp ? "signup" : "signin"} onValueChange={(value) => setIsSignUp(value === "signup")} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-8 bg-gray-50 p-1.5 rounded-2xl border border-gray-200">
+                  <TabsList className="grid w-full grid-cols-2 mb-8 bg-gray-50 p-2 rounded-2xl border border-gray-200 h-14">
                     <TabsTrigger 
                       value="signin" 
-                      className="text-sm font-medium px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg text-gray-600 rounded-xl transition-all duration-200 hover:text-gray-900"
+                      className="text-sm font-medium px-4 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:!text-white data-[state=active]:shadow-lg text-gray-600 rounded-xl transition-all duration-200 hover:text-gray-900"
                     >
                       <LogIn className="w-4 h-4 mr-2" />
                       Sign In
                     </TabsTrigger>
                     <TabsTrigger 
                       value="signup" 
-                      className="text-sm font-medium px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg text-gray-600 rounded-xl transition-all duration-200 hover:text-gray-900"
+                      className="text-sm font-medium px-4 py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:!text-white data-[state=active]:shadow-lg text-gray-600 rounded-xl transition-all duration-200 hover:text-gray-900"
                     >
                       <UserPlus className="w-4 h-4 mr-2" />
                       Create Account

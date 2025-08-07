@@ -169,15 +169,9 @@ export default function StudentDashboard() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Your Courses</CardTitle>
-                  <CardDescription>Manage your enrolled courses and access materials</CardDescription>
-                </div>
-                <Button size="sm" variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Join Course
-                </Button>
+              <div>
+                <CardTitle>Your Courses</CardTitle>
+                <CardDescription>Manage your enrolled courses and access materials</CardDescription>
               </div>
             </CardHeader>
             <CardContent>
@@ -194,7 +188,7 @@ export default function StudentDashboard() {
                   <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No courses enrolled</h3>
                   <p className="text-gray-600 mb-4">Join a course to get started with your learning journey.</p>
-                  <Button>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                     <Plus className="w-4 h-4 mr-2" />
                     Join Your First Course
                   </Button>
@@ -253,10 +247,6 @@ export default function StudentDashboard() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Join New Course
-              </Button>
               <Button className="w-full justify-start" variant="outline">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 Ask a Question

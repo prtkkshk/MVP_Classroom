@@ -13,8 +13,6 @@ import {
   Plus,
   Calendar,
   FileText,
-  Video,
-  BarChart3,
   Clock
 } from 'lucide-react'
 import useAuthStore from '@/store/authStore'
@@ -85,7 +83,7 @@ export default function ProfessorDashboard() {
         </Button>
       </motion.div>
 
-      {/* Analytics Overview */}
+      {/* Statistics Overview */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -220,14 +218,7 @@ export default function ProfessorDashboard() {
                         <FileText className="w-4 h-4 mr-1" />
                         Materials
                       </Button>
-                      <Button size="sm" variant="outline">
-                        <Video className="w-4 h-4 mr-1" />
-                        Live
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <BarChart3 className="w-4 h-4 mr-1" />
-                        Analytics
-                      </Button>
+
                     </div>
                   </div>
                 ))}
@@ -311,38 +302,12 @@ export default function ProfessorDashboard() {
         <Card>
           <CardContent className="p-6">
             <div className="text-center">
-              <div className="p-3 bg-green-100 rounded-lg w-fit mx-auto mb-4">
-                <Video className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="font-medium text-gray-900 mb-2">Start Live Session</h3>
-              <p className="text-sm text-gray-600 mb-4">Begin an interactive live class</p>
-              <Button size="sm" variant="outline" className="w-full">Go Live</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
               <div className="p-3 bg-purple-100 rounded-lg w-fit mx-auto mb-4">
                 <FileText className="w-6 h-6 text-purple-600" />
               </div>
               <h3 className="font-medium text-gray-900 mb-2">Upload Materials</h3>
               <p className="text-sm text-gray-600 mb-4">Share course materials with students</p>
               <Button size="sm" variant="outline" className="w-full">Upload</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="p-3 bg-orange-100 rounded-lg w-fit mx-auto mb-4">
-                <BarChart3 className="w-6 h-6 text-orange-600" />
-              </div>
-              <h3 className="font-medium text-gray-900 mb-2">View Analytics</h3>
-              <p className="text-sm text-gray-600 mb-4">Track student engagement and progress</p>
-              <Button size="sm" variant="outline" className="w-full">Analytics</Button>
             </div>
           </CardContent>
         </Card>

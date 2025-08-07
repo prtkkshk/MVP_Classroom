@@ -1,14 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   GraduationCap, 
   Home, 
   BookOpen, 
-  Video, 
-  BarChart3, 
   Settings, 
   LogOut,
   Users,
@@ -23,33 +21,37 @@ import useAuthStore from '@/store/authStore'
 const sidebarItems = {
   student: [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
-    { icon: BookOpen, label: 'Courses', href: '/courses' },
-    { icon: Video, label: 'Live Sessions', href: '/live-sessions' },
-    { icon: BarChart3, label: 'Analytics', href: '/analytics' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
+    { icon: BookOpen, label: 'Courses', href: '/dashboard/courses' },
+    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ],
   professor: [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
-    { icon: BookOpen, label: 'My Courses', href: '/courses' },
-    { icon: Video, label: 'Live Sessions', href: '/live-sessions' },
-    { icon: BarChart3, label: 'Analytics', href: '/analytics' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
+    { icon: BookOpen, label: 'My Courses', href: '/dashboard/courses' },
+    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ],
   super_admin: [
     { icon: Home, label: 'Dashboard', href: '/admin' },
     { icon: Users, label: 'User Management', href: '/admin/users' },
     { icon: BookOpen, label: 'Course Oversight', href: '/admin/courses' },
-    { icon: BarChart3, label: 'System Analytics', href: '/admin/analytics' },
-    { icon: Settings, label: 'Settings', href: '/admin/settings' },
+    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ]
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  onCollapsedChange?: (collapsed: boolean) => void
+}
+
+export default function Sidebar({ onCollapsedChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut } = useAuthStore()
+
+  // Notify parent component when collapsed state changes
+  useEffect(() => {
+    onCollapsedChange?.(isCollapsed)
+  }, [isCollapsed, onCollapsedChange])
 
   if (!user) return null
 
@@ -64,26 +66,26 @@ export default function Sidebar() {
     <motion.div 
       className={cn(
         "flex flex-col h-full bg-white border-r border-gray-200",
-        !isMobile && isCollapsed && "w-16",
+        !isMobile && isCollapsed && "w-20",
         !isMobile && !isCollapsed && "w-64",
         isMobile && "w-64"
       )}
-      animate={!isMobile ? { width: isCollapsed ? 64 : 256 } : {}}
+      animate={!isMobile ? { width: isCollapsed ? 80 : 256 } : {}}
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="p-3 border-b border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between w-full">
           <AnimatePresence>
-            {(!isCollapsed || isMobile) && (
+            {(!isCollapsed || isMobile) ? (
               <motion.div
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center gap-2 overflow-hidden"
+                className="flex items-center gap-2 overflow-hidden flex-1"
               >
-                <div className="p-2 bg-blue-600 rounded-lg">
+                <div className="p-1.5 bg-blue-600 rounded-lg flex items-center justify-center w-8 h-8">
                   <GraduationCap className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -91,18 +93,32 @@ export default function Sidebar() {
                   <p className="text-xs text-gray-500 capitalize">{user.role.replace('_', ' ')}</p>
                 </div>
               </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex justify-center flex-1"
+              >
+                <div className="p-1.5 bg-blue-600 rounded-lg flex items-center justify-center w-8 h-8">
+                  <GraduationCap className="w-5 h-5 text-white" />
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
           
           {!isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="h-8 w-8"
-            >
-              <ChevronRight className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
-            </Button>
+            <div className="flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="h-8 w-8"
+              >
+                <ChevronRight className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-180")} />
+              </Button>
+            </div>
           )}
           
           {isMobile && (
@@ -119,7 +135,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-3">
         <ul className="space-y-2">
           {items.map((item) => {
             const isActive = pathname === item.href
@@ -135,10 +151,11 @@ export default function Sidebar() {
                     if (isMobile) setIsMobileOpen(false)
                   }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors",
+                    "w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors",
                     isActive
                       ? "bg-blue-50 text-blue-600 border border-blue-200"
-                      : "hover:bg-gray-50 text-gray-700 hover:text-gray-900"
+                      : "hover:bg-gray-50 text-gray-700 hover:text-gray-900",
+                    isCollapsed && !isMobile && "justify-center px-0"
                   )}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0" />
@@ -163,7 +180,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User Profile & Logout */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-3 border-t border-gray-200">
         <AnimatePresence>
           {(!isCollapsed || isMobile) && (
             <motion.div
@@ -171,7 +188,7 @@ export default function Sidebar() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="mb-3 p-3 bg-gray-50 rounded-lg overflow-hidden"
+              className="mb-3 p-2 bg-gray-50 rounded-lg overflow-hidden"
             >
               <p className="font-medium text-sm text-gray-900 truncate">{user.name}</p>
               <p className="text-xs text-gray-500 truncate">{user.email}</p>
@@ -184,7 +201,7 @@ export default function Sidebar() {
           onClick={handleLogout}
           className={cn(
             "w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50",
-            isCollapsed && !isMobile && "px-3"
+            isCollapsed && !isMobile && "justify-center px-0"
           )}
         >
           <LogOut className="h-5 w-5 flex-shrink-0" />

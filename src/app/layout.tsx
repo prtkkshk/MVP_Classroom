@@ -2,7 +2,6 @@
 
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { useEffect } from 'react'
 import useAuthStore from '@/store/authStore'
@@ -22,16 +21,9 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster position="top-right" />
-        </ThemeProvider>
+      <body className={`${inter.className} bg-white`}>
+        {children}
+        <Toaster position="top-right" />
       </body>
     </html>
   )
