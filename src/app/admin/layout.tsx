@@ -22,6 +22,25 @@ export default function AdminLayout({
     }
   }, [isAuthenticated, isLoading, user, router])
 
+  // Debug logging
+  useEffect(() => {
+    console.log('Admin layout auth state:', { isAuthenticated, isLoading, user: user?.role })
+  }, [isAuthenticated, isLoading, user])
+
+  // Add error boundary for admin pages
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('Admin layout error:', error)
+      // Redirect to login if there's a critical error
+      if (error.error?.message?.includes('500') || error.error?.message?.includes('database')) {
+        router.push('/login')
+      }
+    }
+
+    window.addEventListener('error', handleError)
+    return () => window.removeEventListener('error', handleError)
+  }, [router])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">

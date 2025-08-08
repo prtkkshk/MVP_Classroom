@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { supabase } from '@/lib/supabase'
 import { User } from '@supabase/supabase-js'
 
@@ -27,11 +28,69 @@ interface AuthStore {
   updateProfile: (updates: Partial<AuthUser>) => Promise<{ success: boolean; error?: string }>
 }
 
-const useAuthStore = create<AuthStore>((set, get) => ({
-  user: null,
-  supabaseUser: null,
-  isAuthenticated: false,
-  isLoading: true,
+// Helper function to get or create admin user
+const getOrCreateAdminUser = async (username: string): Promise<AuthUser> => {
+  try {
+    // First, try to find existing admin user
+    const { data: existingAdmin, error: findError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .eq('role', 'super_admin')
+      .single()
+
+    if (existingAdmin && !findError) {
+      return existingAdmin
+    }
+
+    // If admin doesn't exist, create one
+    const adminUserData = {
+      email: 'admin@infralearn.com',
+      username: username,
+      name: 'System Administrator',
+      role: 'super_admin' as const,
+      avatar_url: null
+    }
+
+    const { data: newAdmin, error: createError } = await supabase
+      .from('users')
+      .insert(adminUserData)
+      .select()
+      .single()
+
+    if (createError) {
+      console.error('Error creating admin user:', createError)
+      // Return a fallback admin user if database creation fails
+      return {
+        id: 'admin-fallback',
+        email: 'admin@infralearn.com',
+        username: username,
+        name: 'System Administrator',
+        role: 'super_admin'
+      }
+    }
+
+    return newAdmin
+  } catch (error) {
+    console.error('Error in getOrCreateAdminUser:', error)
+    // Return a fallback admin user
+    return {
+      id: 'admin-fallback',
+      email: 'admin@infralearn.com',
+      username: username,
+      name: 'System Administrator',
+      role: 'super_admin'
+    }
+  }
+}
+
+const useAuthStore = create<AuthStore>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      supabaseUser: null,
+      isAuthenticated: false,
+      isLoading: true,
 
   signUp: async (email: string, password: string, username: string, name: string, role: 'professor' | 'student') => {
     try {
@@ -100,12 +159,16 @@ const useAuthStore = create<AuthStore>((set, get) => ({
 
   signIn: async (username: string, password: string) => {
     try {
-      // Check for hardcoded admin login
-      if (username === 'pepper_admin' && password === '14627912') {
+      // Check for admin login using environment variables
+      const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME
+      const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+      
+      if (adminUsername && adminPassword && username === adminUsername && password === adminPassword) {
+        // Create admin user without database access to avoid 500 errors
         const adminUser: AuthUser = {
-          id: 'admin-001',
+          id: 'admin-' + Date.now(),
           email: 'admin@infralearn.com',
-          username: 'pepper_admin',
+          username: adminUsername,
           name: 'System Administrator',
           role: 'super_admin'
         }
@@ -115,6 +178,9 @@ const useAuthStore = create<AuthStore>((set, get) => ({
           supabaseUser: null, 
           isAuthenticated: true 
         })
+        
+        // Ensure the session is persisted
+        console.log('Admin login successful, session will be persisted')
         return { success: true }
       }
 
@@ -168,6 +234,8 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       await supabase.auth.signOut()
       set({ user: null, supabaseUser: null, isAuthenticated: false })
+      // Clear persisted data
+      localStorage.removeItem('auth-storage')
     } catch (error) {
       console.error('Sign out error:', error)
     }
@@ -194,6 +262,13 @@ const useAuthStore = create<AuthStore>((set, get) => ({
             supabaseUser: session.user, 
             isAuthenticated: true 
           })
+        }
+      } else {
+        // Check if there's a persisted admin session
+        const currentState = get()
+        if (currentState.isAuthenticated && currentState.user?.role === 'super_admin') {
+          // Admin session is already persisted, keep it
+          console.log('Restoring persisted admin session')
         }
       }
 
@@ -296,6 +371,15 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       return { success: false, error: 'An unexpected error occurred' }
     }
   },
-}))
+    }),
+    {
+      name: 'auth-storage', // unique name for localStorage key
+      partialize: (state) => ({ 
+        user: state.user, 
+        isAuthenticated: state.isAuthenticated 
+      }), // only persist these fields
+    }
+  )
+)
 
 export default useAuthStore 

@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { 
   BookOpen, 
   Users, 
@@ -13,57 +15,181 @@ import {
   Plus,
   Calendar,
   FileText,
-  Clock
+  Clock,
+  Video,
+  Award,
+  Activity,
+  ArrowRight
 } from 'lucide-react'
 import useAuthStore from '@/store/authStore'
 import useCourseStore from '@/store/courseStore'
 
+interface DashboardStats {
+  totalStudents: number
+  activeCourses: number
+  totalDoubts: number
+  totalLiveSessions: number
+  totalAssignments: number
+  totalMaterials: number
+  averageEngagement: number
+  recentActivity: {
+    type: string
+    title: string
+    course: string
+    timestamp: Date
+  }[]
+}
+
 export default function ProfessorDashboard() {
+  const router = useRouter()
   const { user } = useAuthStore()
-  const { courses, fetchProfessorCourses, isLoading } = useCourseStore()
-  const [stats, setStats] = useState({
+  const { 
+    courses, 
+    doubts, 
+    liveSessions, 
+    assignments, 
+    materials,
+    fetchProfessorCourses, 
+    fetchDoubts,
+    fetchLiveSessions,
+    fetchAssignments,
+    fetchMaterials,
+    isLoading 
+  } = useCourseStore()
+  
+  const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
     activeCourses: 0,
-    weeklyQuestions: 0,
-    engagementRate: 0
+    totalDoubts: 0,
+    totalLiveSessions: 0,
+    totalAssignments: 0,
+    totalMaterials: 0,
+    averageEngagement: 0,
+    recentActivity: []
   })
 
   useEffect(() => {
     if (user) {
-      fetchProfessorCourses(user.id)
+      loadDashboardData()
     }
-  }, [user, fetchProfessorCourses])
+  }, [user])
 
-  useEffect(() => {
-    // Calculate stats from courses
+  const loadDashboardData = async () => {
+    if (!user) return
+
+    // Fetch all course-related data
+    await Promise.all([
+      fetchProfessorCourses(user.id),
+      // Fetch data for each course
+      ...courses.map(course => Promise.all([
+        fetchDoubts(course.id),
+        fetchLiveSessions(course.id),
+        fetchAssignments(course.id),
+        fetchMaterials(course.id)
+      ]))
+    ])
+
+    // Calculate stats
     const totalStudents = courses.reduce((acc, course) => acc + (course.enrolled_students || 0), 0)
-    const activeCourses = courses.filter(course => course.is_live).length
+    const activeCourses = courses.filter(course => course.is_active).length
+    const totalDoubts = doubts.length
+    const totalLiveSessions = liveSessions.length
+    const totalAssignments = assignments.length
+    const totalMaterials = materials.length
+    
+    // Calculate engagement rate (mock calculation)
+    const engagement = Math.round((totalStudents / Math.max(courses.length * 50, 1)) * 100) || 87
+
+    // Generate recent activity
+    const recentActivity = generateRecentActivity()
+
     setStats({
       totalStudents,
-      activeCourses: courses.length,
-      weeklyQuestions: courses.length * 5, // Mock data - will be replaced with actual doubt count
-      engagementRate: Math.round((totalStudents / Math.max(courses.length * 50, 1)) * 100) || 87
+      activeCourses,
+      totalDoubts,
+      totalLiveSessions,
+      totalAssignments,
+      totalMaterials,
+      averageEngagement: engagement,
+      recentActivity
     })
-  }, [courses])
+  }
 
-  const recentQuestions = [
-    {
-      id: '1',
-      text: 'Can you explain the time complexity of binary search trees?',
-      course: 'Advanced Data Structures',
-      student: 'Anonymous',
-      timestamp: new Date('2024-01-15T10:30:00'),
-      upvotes: 5
-    },
-    {
-      id: '2',
-      text: 'What is the difference between DFS and BFS traversal?',
-      course: 'Advanced Data Structures',
-      student: 'Alice Johnson',
-      timestamp: new Date('2024-01-15T10:35:00'),
-      upvotes: 3
+  const generateRecentActivity = () => {
+    const activities = []
+    
+    // Add recent doubts
+    doubts.slice(0, 3).forEach(doubt => {
+      const course = courses.find(c => c.id === doubt.course_id)
+      activities.push({
+        type: 'doubt',
+        title: doubt.text.substring(0, 50) + '...',
+        course: course?.title || 'Unknown Course',
+        timestamp: new Date(doubt.created_at)
+      })
+    })
+
+    // Add recent assignments
+    assignments.slice(0, 2).forEach(assignment => {
+      const course = courses.find(c => c.id === assignment.course_id)
+      activities.push({
+        type: 'assignment',
+        title: assignment.title,
+        course: course?.title || 'Unknown Course',
+        timestamp: new Date(assignment.created_at)
+      })
+    })
+
+    // Add recent live sessions
+    liveSessions.slice(0, 2).forEach(session => {
+      const course = courses.find(c => c.id === session.course_id)
+      activities.push({
+        type: 'live_session',
+        title: session.title,
+        course: course?.title || 'Unknown Course',
+        timestamp: new Date(session.started_at)
+      })
+    })
+
+    return activities
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 5)
+  }
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'doubt': return <MessageSquare className="w-4 h-4" />
+      case 'assignment': return <FileText className="w-4 h-4" />
+      case 'live_session': return <Video className="w-4 h-4" />
+      default: return <Activity className="w-4 h-4" />
     }
-  ]
+  }
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'doubt': return 'text-blue-600 bg-blue-100'
+      case 'assignment': return 'text-green-600 bg-green-100'
+      case 'live_session': return 'text-purple-600 bg-purple-100'
+      default: return 'text-gray-600 bg-gray-100'
+    }
+  }
+
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date()
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
+    return `${Math.floor(diffInMinutes / 1440)}d ago`
+  }
+
+  const topPerformingCourses = courses
+    .map(course => ({
+      ...course,
+      engagement: Math.floor(Math.random() * 40) + 60 // Mock engagement rate
+    }))
+    .sort((a, b) => b.engagement - a.engagement)
+    .slice(0, 3)
 
   return (
     <div className="p-6 space-y-6">
@@ -78,10 +204,24 @@ export default function ProfessorDashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Teaching Dashboard</h1>
           <p className="text-gray-600">Manage your courses and track student engagement</p>
         </div>
-        <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+        <div className="flex gap-2">
+          <Button 
+            size="lg" 
+            variant="outline"
+            onClick={() => router.push('/dashboard/analytics')}
+          >
+            <TrendingUp className="w-4 h-4 mr-2" />
+            View Analytics
+          </Button>
+        <Button 
+          size="lg" 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => router.push('/dashboard/courses/create')}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create Course
         </Button>
+        </div>
       </motion.div>
 
       {/* Statistics Overview */}
@@ -112,6 +252,7 @@ export default function ProfessorDashboard() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Courses</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.activeCourses}</p>
+                <p className="text-xs text-blue-600">of {courses.length} total</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
                 <BookOpen className="w-6 h-6 text-green-600" />
@@ -124,8 +265,8 @@ export default function ProfessorDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Questions This Week</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.weeklyQuestions}</p>
+                <p className="text-sm font-medium text-gray-600">Total Doubts</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalDoubts}</p>
                 <p className="text-xs text-green-600">+8% from last week</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -140,7 +281,7 @@ export default function ProfessorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Engagement Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.engagementRate}%</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.averageEngagement}%</p>
                 <p className="text-xs text-green-600">+5% from last month</p>
               </div>
               <div className="p-3 bg-orange-100 rounded-lg">
@@ -166,7 +307,11 @@ export default function ProfessorDashboard() {
                 <CardTitle>My Courses</CardTitle>
                 <CardDescription>Manage your active courses and materials</CardDescription>
               </div>
-              <Button size="sm" variant="outline">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => router.push('/dashboard/courses/create')}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 New Course
               </Button>
@@ -186,7 +331,7 @@ export default function ProfessorDashboard() {
                 <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No courses created</h3>
                 <p className="text-gray-600 mb-4">Create your first course to start teaching.</p>
-                <Button>
+                <Button onClick={() => router.push('/dashboard/courses/create')}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Your First Course
                 </Button>
@@ -206,26 +351,32 @@ export default function ProfessorDashboard() {
                           <Badge variant="secondary" className="text-xs">
                             {course.enrolled_students || 0} students
                           </Badge>
-                          {course.is_live && (
-                            <Badge variant="destructive" className="text-xs">
-                              Live
+                          {course.is_active && (
+                            <Badge variant="default" className="text-xs">
+                              Active
                             </Badge>
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => router.push(`/dashboard/courses/${course.id}`)}
+                      >
                         <FileText className="w-4 h-4 mr-1" />
-                        Materials
+                        View
                       </Button>
-
                     </div>
                   </div>
                 ))}
                 {courses.length > 3 && (
                   <div className="text-center pt-4">
-                    <Button variant="outline">
+                    <Button 
+                      variant="outline"
+                      onClick={() => router.push('/dashboard/courses')}
+                    >
                       View All {courses.length} Courses
                     </Button>
                   </div>
@@ -235,43 +386,35 @@ export default function ProfessorDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Questions */}
+        {/* Top Performing Courses */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Recent Questions</CardTitle>
-                <CardDescription>Latest doubts from your students</CardDescription>
+                <CardTitle>Top Performing Courses</CardTitle>
+                <CardDescription>Courses with highest student engagement</CardDescription>
               </div>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => router.push('/dashboard/analytics')}>
                 View All
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentQuestions.map((question) => (
-                <div key={question.id} className="p-4 border rounded-lg">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="text-xs">
-                        {question.course}
-                      </Badge>
-                      <span className="text-xs text-gray-500">
-                        {question.timestamp.toLocaleDateString()}
-                      </span>
+              {topPerformingCourses.map((course, index) => (
+                <div key={course.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold">
+                      {index + 1}
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <MessageSquare className="w-4 h-4 text-gray-400" />
-                      <span className="text-xs text-gray-500">{question.upvotes}</span>
+                    <div>
+                      <h3 className="font-medium text-sm">{course.title}</h3>
+                      <p className="text-xs text-gray-600">{course.code}</p>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-900 mb-2">{question.text}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-600">by {question.student}</span>
-                    <Button size="sm" variant="outline">
-                      Answer
-                    </Button>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">{course.engagement}%</p>
+                    <Progress value={course.engagement} className="w-20 h-2 mt-1" />
                   </div>
                 </div>
               ))}
@@ -280,35 +423,119 @@ export default function ProfessorDashboard() {
         </Card>
       </motion.div>
 
-      {/* Quick Actions */}
+      {/* Recent Activity */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
       >
         <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="p-3 bg-blue-100 rounded-lg w-fit mx-auto mb-4">
-                <Plus className="w-6 h-6 text-blue-600" />
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest activities across your courses</CardDescription>
               </div>
-              <h3 className="font-medium text-gray-900 mb-2">Create Course</h3>
-              <p className="text-sm text-gray-600 mb-4">Start a new course and invite students</p>
-              <Button size="sm" className="w-full">Get Started</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats.recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-start space-x-3 p-3 border rounded-lg">
+                  <div className={`p-2 rounded-lg ${getActivityColor(activity.type)}`}>
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {activity.title}
+                    </p>
+                    <p className="text-xs text-gray-600">{activity.course}</p>
+                    <p className="text-xs text-gray-500">{formatTimeAgo(activity.timestamp)}</p>
+                  </div>
+                </div>
+              ))}
+              {stats.recentActivity.length === 0 && (
+                <div className="text-center py-8">
+                  <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No recent activity</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* Quick Actions */}
         <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <div className="p-3 bg-purple-100 rounded-lg w-fit mx-auto mb-4">
-                <FileText className="w-6 h-6 text-purple-600" />
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common tasks and shortcuts</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3">
+              <Button 
+                variant="outline" 
+                className="justify-start h-auto p-4"
+                onClick={() => router.push('/dashboard/courses/create')}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Plus className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">Create New Course</p>
+                    <p className="text-sm text-gray-600">Start a new course</p>
+                  </div>
+                </div>
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="justify-start h-auto p-4"
+                onClick={() => router.push('/dashboard/analytics')}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">View Analytics</p>
+                    <p className="text-sm text-gray-600">Track performance</p>
+                  </div>
+                </div>
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="justify-start h-auto p-4"
+                onClick={() => router.push('/dashboard/courses')}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <BookOpen className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">Manage Courses</p>
+                    <p className="text-sm text-gray-600">View all courses</p>
+                  </div>
+                </div>
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="justify-start h-auto p-4"
+                onClick={() => router.push('/dashboard/settings')}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Award className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium">Settings</p>
+                    <p className="text-sm text-gray-600">Manage preferences</p>
+                  </div>
               </div>
-              <h3 className="font-medium text-gray-900 mb-2">Upload Materials</h3>
-              <p className="text-sm text-gray-600 mb-4">Share course materials with students</p>
-              <Button size="sm" variant="outline" className="w-full">Upload</Button>
+              </Button>
             </div>
           </CardContent>
         </Card>

@@ -5,13 +5,18 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: 'bottom-left',
   },
-  turbopack: {
-    rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
-      },
-    },
+  // Improve error handling
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
+  // Handle SVG imports
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: ['@svgr/webpack'],
+    });
+    return config;
   },
 };
 

@@ -13,7 +13,15 @@ import {
   Menu,
   X,
   ChevronRight,
-  Database
+  Database,
+  BarChart3,
+  Activity,
+  Shield,
+  FileText,
+  TrendingUp,
+  Bot,
+  Calendar,
+  MessageSquare
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -22,20 +30,27 @@ import useAuthStore from '@/store/authStore'
 const sidebarItems = {
   student: [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
-    { icon: BookOpen, label: 'Courses', href: '/dashboard/courses' },
+    { icon: BookOpen, label: 'My Courses', href: '/dashboard/courses' },
+    { icon: Bot, label: 'AI Companion', href: '/dashboard/ai-companion' },
+    { icon: Calendar, label: 'Calendar', href: '/dashboard/calendar' },
+    { icon: MessageSquare, label: 'Enroll', href: '/dashboard/courses/enroll' },
     { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ],
   professor: [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: BookOpen, label: 'My Courses', href: '/dashboard/courses' },
+    { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics' },
     { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ],
   super_admin: [
     { icon: Home, label: 'Dashboard', href: '/admin' },
     { icon: Users, label: 'User Management', href: '/admin/users' },
     { icon: BookOpen, label: 'Course Oversight', href: '/admin/courses' },
+    { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
     { icon: Database, label: 'Database', href: '/admin/database' },
-    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
+    { icon: Activity, label: 'System Monitoring', href: '/admin/monitoring' },
+    { icon: Settings, label: 'Settings', href: '/admin/settings' },
+    { icon: FileText, label: 'Reports', href: '/admin/reports' },
   ]
 }
 

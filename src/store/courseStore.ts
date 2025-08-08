@@ -1,498 +1,1083 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
+import { Database } from '@/lib/supabase'
 
-interface Course {
-  id: string
-  title: string
-  code: string
-  description: string
-  professor_id: string
-  professor_name?: string
-  semester: string
-  max_students: number
-  enrolled_students?: number
-  schedule: string
-  classroom: string
-  is_live: boolean
-  created_at: string
-  updated_at: string
-}
-
-interface CourseMaterial {
-  id: string
-  course_id: string
-  name: string
-  type: string
-  file_url: string
-  uploaded_by: string
-  created_at: string
-}
-
-interface Doubt {
-  id: string
-  course_id: string
-  student_id: string
-  student_name?: string
-  text: string
-  anonymous: boolean
-  upvotes: number
-  answered: boolean
-  created_at: string
-}
-
-interface CourseEnrollment {
-  id: string
-  course_id: string
-  student_id: string
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-}
+type Course = Database['public']['Tables']['courses']['Row']
+type CourseEnrollment = Database['public']['Tables']['course_enrollments']['Row']
+type CourseMaterial = Database['public']['Tables']['course_materials']['Row']
+type CourseAnnouncement = Database['public']['Tables']['course_announcements']['Row']
+type LiveSession = Database['public']['Tables']['live_sessions']['Row']
+type Doubt = Database['public']['Tables']['doubts']['Row']
+type DoubtUpvote = Database['public']['Tables']['doubt_upvotes']['Row']
+type LivePoll = Database['public']['Tables']['live_polls']['Row']
+type PollResponse = Database['public']['Tables']['poll_responses']['Row']
+type Assignment = Database['public']['Tables']['assignments']['Row']
+type CalendarEvent = Database['public']['Tables']['calendar_events']['Row']
+type Notification = Database['public']['Tables']['notifications']['Row']
 
 interface CourseStore {
+  // State
   courses: Course[]
-  enrolledCourses: Course[]
-  courseMaterials: CourseMaterial[]
-  doubts: Doubt[]
   enrollments: CourseEnrollment[]
+  materials: CourseMaterial[]
+  announcements: CourseAnnouncement[]
+  liveSessions: LiveSession[]
+  doubts: Doubt[]
+  doubtUpvotes: DoubtUpvote[]
+  livePolls: LivePoll[]
+  pollResponses: PollResponse[]
+  assignments: Assignment[]
+  calendarEvents: CalendarEvent[]
+  notifications: Notification[]
   isLoading: boolean
-  
-  // Course management
+  error: string | null
+
+  // Course Management
   fetchCourses: () => Promise<void>
-  fetchEnrolledCourses: (studentId: string) => Promise<void>
   fetchProfessorCourses: (professorId: string) => Promise<void>
-  createCourse: (courseData: Omit<Course, 'id' | 'created_at' | 'updated_at'>) => Promise<{ success: boolean; error?: string }>
+  fetchEnrolledCourses: (studentId: string) => Promise<void>
+  createCourse: (courseData: Omit<Course, 'id' | 'created_at' | 'updated_at'> & { is_public?: boolean; allow_enrollment?: boolean; prerequisites?: string; learning_objectives?: string }) => Promise<{ success: boolean; error?: string }>
   updateCourse: (id: string, updates: Partial<Course>) => Promise<{ success: boolean; error?: string }>
   deleteCourse: (id: string) => Promise<{ success: boolean; error?: string }>
-  
-  // Course materials
-  fetchCourseMaterials: (courseId: string) => Promise<void>
+  checkCourseCodeExists: (code: string) => Promise<boolean>
+
+  // Enrollment Management
+  fetchEnrollments: (courseId?: string) => Promise<void>
+  enrollInCourse: (courseId: string, studentId: string) => Promise<{ success: boolean; error?: string }>
+  updateEnrollmentStatus: (enrollmentId: string, status: 'approved' | 'rejected') => Promise<{ success: boolean; error?: string }>
+
+  // Material Management
+  fetchMaterials: (courseId: string) => Promise<void>
   uploadMaterial: (materialData: Omit<CourseMaterial, 'id' | 'created_at'>) => Promise<{ success: boolean; error?: string }>
   deleteMaterial: (id: string) => Promise<{ success: boolean; error?: string }>
-  
-  // Doubts
-  fetchDoubts: (courseId: string) => Promise<void>
+
+  // Announcement Management
+  fetchAnnouncements: (courseId: string) => Promise<void>
+  createAnnouncement: (announcementData: Omit<CourseAnnouncement, 'id' | 'created_at' | 'updated_at'>) => Promise<{ success: boolean; error?: string }>
+  updateAnnouncement: (id: string, updates: Partial<CourseAnnouncement>) => Promise<{ success: boolean; error?: string }>
+  deleteAnnouncement: (id: string) => Promise<{ success: boolean; error?: string }>
+
+  // Live Session Management
+  fetchLiveSessions: (courseId: string) => Promise<void>
+  startLiveSession: (sessionData: Omit<LiveSession, 'id' | 'created_at'>) => Promise<{ success: boolean; error?: string }>
+  endLiveSession: (sessionId: string) => Promise<{ success: boolean; error?: string }>
+  updateParticipantCount: (sessionId: string, count: number) => Promise<{ success: boolean; error?: string }>
+
+  // Doubt Management
+  fetchDoubts: (courseId: string, liveSessionId?: string) => Promise<void>
   submitDoubt: (doubtData: Omit<Doubt, 'id' | 'created_at'>) => Promise<{ success: boolean; error?: string }>
   upvoteDoubt: (doubtId: string, userId: string) => Promise<{ success: boolean; error?: string }>
-  markDoubtAnswered: (doubtId: string) => Promise<{ success: boolean; error?: string }>
-  
-  // Enrollments
-  fetchEnrollments: (courseId: string) => Promise<void>
-  enrollInCourse: (courseId: string, studentId: string) => Promise<{ success: boolean; error?: string }>
-  approveEnrollment: (enrollmentId: string) => Promise<{ success: boolean; error?: string }>
-  rejectEnrollment: (enrollmentId: string) => Promise<{ success: boolean; error?: string }>
-  
-  // Utilities
-  checkCourseCodeExists: (code: string) => Promise<boolean>
+  removeUpvote: (doubtId: string, userId: string) => Promise<{ success: boolean; error?: string }>
+  answerDoubt: (doubtId: string, answerText: string, answeredBy: string) => Promise<{ success: boolean; error?: string }>
+
+  // Live Poll Management
+  fetchPolls: (liveSessionId: string) => Promise<void>
+  createPoll: (pollData: Omit<LivePoll, 'id' | 'created_at'>) => Promise<{ success: boolean; error?: string }>
+  endPoll: (pollId: string) => Promise<{ success: boolean; error?: string }>
+  submitPollResponse: (responseData: Omit<PollResponse, 'id' | 'created_at'>) => Promise<{ success: boolean; error?: string }>
+  fetchPollResponses: (pollId: string) => Promise<void>
+
+  // Assignment Management
+  fetchAssignments: (courseId: string) => Promise<void>
+  createAssignment: (assignmentData: Omit<Assignment, 'id' | 'created_at' | 'updated_at'>) => Promise<{ success: boolean; error?: string }>
+  updateAssignment: (id: string, updates: Partial<Assignment>) => Promise<{ success: boolean; error?: string }>
+  deleteAssignment: (id: string) => Promise<{ success: boolean; error?: string }>
+
+  // Calendar Management
+  fetchCalendarEvents: (courseId: string) => Promise<void>
+  createCalendarEvent: (eventData: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>) => Promise<{ success: boolean; error?: string }>
+  updateCalendarEvent: (id: string, updates: Partial<CalendarEvent>) => Promise<{ success: boolean; error?: string }>
+  deleteCalendarEvent: (id: string) => Promise<{ success: boolean; error?: string }>
+
+  // Notification Management
+  fetchNotifications: (userId: string) => Promise<void>
+  markNotificationAsRead: (notificationId: string) => Promise<{ success: boolean; error?: string }>
+  markAllNotificationsAsRead: (userId: string) => Promise<{ success: boolean; error?: string }>
+  deleteNotification: (notificationId: string) => Promise<{ success: boolean; error?: string }>
+
+  // Utility
+  clearError: () => void
+  clearStore: () => void
 }
 
 const useCourseStore = create<CourseStore>((set, get) => ({
+  // Initial state
   courses: [],
-  enrolledCourses: [],
-  courseMaterials: [],
-  doubts: [],
   enrollments: [],
+  materials: [],
+  announcements: [],
+  liveSessions: [],
+  doubts: [],
+  doubtUpvotes: [],
+  livePolls: [],
+  pollResponses: [],
+  assignments: [],
+  calendarEvents: [],
+  notifications: [],
   isLoading: false,
+  error: null,
 
+  // Course Management
   fetchCourses: async () => {
+    set({ isLoading: true, error: null })
     try {
-      set({ isLoading: true })
-      
-      // Start with empty courses array
-      set({ courses: [] })
+      const { data, error } = await supabase
+        .from('courses')
+        .select(`
+          *,
+          users!courses_professor_id_fkey(name, username)
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      set({ courses: data || [], isLoading: false })
     } catch (error) {
-      console.error('Error fetching courses:', error)
-    } finally {
-      set({ isLoading: false })
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  fetchProfessorCourses: async (professorId: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('professor_id', professorId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      set({ courses: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
     }
   },
 
   fetchEnrolledCourses: async (studentId: string) => {
+    set({ isLoading: true, error: null })
     try {
-      set({ isLoading: true })
       const { data, error } = await supabase
         .from('course_enrollments')
         .select(`
           *,
-          course:courses(
-            *,
-            professor:users!courses_professor_id_fkey(name)
-          )
+          courses!course_enrollments_course_id_fkey(*)
         `)
         .eq('student_id', studentId)
         .eq('status', 'approved')
 
       if (error) throw error
-
-      const enrolledCourses = data?.map(enrollment => ({
-        ...enrollment.course,
-        professor_name: enrollment.course.professor?.name
-      })) || []
-
-      set({ enrolledCourses })
+      set({ 
+        enrollments: data || [], 
+        courses: data?.map(e => e.courses).filter(Boolean) || [],
+        isLoading: false 
+      })
     } catch (error) {
-      console.error('Error fetching enrolled courses:', error)
-    } finally {
-      set({ isLoading: false })
-    }
-  },
-
-  fetchProfessorCourses: async (professorId: string) => {
-    try {
-      set({ isLoading: true })
-      
-      // Get existing courses from state (including newly created ones)
-      const existingCourses = get().courses
-      
-      // Filter courses for the specific professor
-      const professorCourses = existingCourses.filter(course => course.professor_id === professorId)
-      
-      set({ courses: professorCourses })
-    } catch (error) {
-      console.error('Error fetching professor courses:', error)
-    } finally {
-      set({ isLoading: false })
+      set({ error: (error as Error).message, isLoading: false })
     }
   },
 
   createCourse: async (courseData) => {
+    set({ isLoading: true, error: null })
     try {
-      // Mock course creation for development
-      const newCourse: Course = {
-        id: `course_${Date.now()}`,
-        ...courseData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
+      const { data, error } = await supabase
+        .from('courses')
+        .insert(courseData)
+        .select()
+        .single()
 
-      // Add to local state
-      set(state => ({
-        courses: [newCourse, ...state.courses]
-      }))
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
+      if (error) throw error
+      
+      const { courses } = get()
+      set({ 
+        courses: [data, ...courses],
+        isLoading: false 
+      })
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to create course' }
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
     }
   },
 
   updateCourse: async (id, updates) => {
+    set({ isLoading: true, error: null })
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('courses')
         .update(updates)
         .eq('id', id)
+        .select()
+        .single()
 
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh courses list
-      await get().fetchCourses()
+      if (error) throw error
+      
+      const { courses } = get()
+      set({ 
+        courses: courses.map(c => c.id === id ? data : c),
+        isLoading: false 
+      })
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to update course' }
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
     }
   },
 
   deleteCourse: async (id) => {
+    set({ isLoading: true, error: null })
     try {
       const { error } = await supabase
         .from('courses')
         .delete()
         .eq('id', id)
 
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh courses list
-      await get().fetchCourses()
+      if (error) throw error
+      
+      const { courses } = get()
+      set({ 
+        courses: courses.filter(c => c.id !== id),
+        isLoading: false 
+      })
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to delete course' }
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
     }
   },
 
-  fetchCourseMaterials: async (courseId: string) => {
+  checkCourseCodeExists: async (code) => {
     try {
       const { data, error } = await supabase
-        .from('course_materials')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      set({ courseMaterials: data || [] })
-    } catch (error) {
-      console.error('Error fetching course materials:', error)
-    }
-  },
-
-  uploadMaterial: async (materialData) => {
-    try {
-      const { error } = await supabase
-        .from('course_materials')
-        .insert(materialData)
-
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh materials list
-      await get().fetchCourseMaterials(materialData.course_id)
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: 'Failed to upload material' }
-    }
-  },
-
-  deleteMaterial: async (id) => {
-    try {
-      const { error } = await supabase
-        .from('course_materials')
-        .delete()
-        .eq('id', id)
-
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh materials list
-      const material = get().courseMaterials.find(m => m.id === id)
-      if (material) {
-        await get().fetchCourseMaterials(material.course_id)
-      }
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: 'Failed to delete material' }
-    }
-  },
-
-  fetchDoubts: async (courseId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('doubts')
-        .select(`
-          *,
-          student:users!doubts_student_id_fkey(name)
-        `)
-        .eq('course_id', courseId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      const doubtsWithStudentName = data?.map(doubt => ({
-        ...doubt,
-        student_name: doubt.student?.name
-      })) || []
-
-      set({ doubts: doubtsWithStudentName })
-    } catch (error) {
-      console.error('Error fetching doubts:', error)
-    }
-  },
-
-  submitDoubt: async (doubtData) => {
-    try {
-      const { error } = await supabase
-        .from('doubts')
-        .insert(doubtData)
-
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh doubts list
-      await get().fetchDoubts(doubtData.course_id)
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: 'Failed to submit doubt' }
-    }
-  },
-
-  upvoteDoubt: async (doubtId: string, userId: string) => {
-    try {
-      // Check if user already upvoted
-      const { data: existingUpvote } = await supabase
-        .from('doubt_upvotes')
-        .select('*')
-        .eq('doubt_id', doubtId)
-        .eq('user_id', userId)
+        .from('courses')
+        .select('id')
+        .eq('code', code)
         .single()
 
-      if (existingUpvote) {
-        // Remove upvote
-        await supabase
-          .from('doubt_upvotes')
-          .delete()
-          .eq('doubt_id', doubtId)
-          .eq('user_id', userId)
-
-        // Decrease upvote count
-        await supabase.rpc('decrease_doubt_upvotes', { doubt_id: doubtId })
-      } else {
-        // Add upvote
-        await supabase
-          .from('doubt_upvotes')
-          .insert({ doubt_id: doubtId, user_id: userId })
-
-        // Increase upvote count
-        await supabase.rpc('increase_doubt_upvotes', { doubt_id: doubtId })
-      }
-
-      // Refresh doubts list
-      const doubt = get().doubts.find(d => d.id === doubtId)
-      if (doubt) {
-        await get().fetchDoubts(doubt.course_id)
-      }
-      return { success: true }
+      if (error && error.code !== 'PGRST116') throw error
+      return !!data
     } catch (error) {
-      return { success: false, error: 'Failed to upvote doubt' }
+      return false
     }
   },
 
-  markDoubtAnswered: async (doubtId: string) => {
+  // Enrollment Management
+  fetchEnrollments: async (courseId) => {
+    set({ isLoading: true, error: null })
     try {
-      const { error } = await supabase
-        .from('doubts')
-        .update({ answered: true })
-        .eq('id', doubtId)
-
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh doubts list
-      const doubt = get().doubts.find(d => d.id === doubtId)
-      if (doubt) {
-        await get().fetchDoubts(doubt.course_id)
-      }
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: 'Failed to mark doubt as answered' }
-    }
-  },
-
-  fetchEnrollments: async (courseId: string) => {
-    try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('course_enrollments')
         .select(`
           *,
-          student:users!course_enrollments_student_id_fkey(name, email)
+          users!course_enrollments_student_id_fkey(name, username, email)
         `)
-        .eq('course_id', courseId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (courseId) {
+        query = query.eq('course_id', courseId)
+      }
 
-      set({ enrollments: data || [] })
+      const { data, error } = await query
+      if (error) throw error
+      set({ enrollments: data || [], isLoading: false })
     } catch (error) {
-      console.error('Error fetching enrollments:', error)
+      set({ error: (error as Error).message, isLoading: false })
     }
   },
 
-  enrollInCourse: async (courseId: string, studentId: string) => {
+  enrollInCourse: async (courseId, studentId) => {
+    set({ isLoading: true, error: null })
     try {
-      // Check if already enrolled
-      const { data: existingEnrollment } = await supabase
-        .from('course_enrollments')
-        .select('*')
-        .eq('course_id', courseId)
-        .eq('student_id', studentId)
-        .single()
-
-      if (existingEnrollment) {
-        return { success: false, error: 'Already enrolled in this course' }
-      }
-
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('course_enrollments')
         .insert({
           course_id: courseId,
           student_id: studentId,
           status: 'pending'
         })
+        .select()
+        .single()
 
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
+      if (error) throw error
+      
+      const { enrollments } = get()
+      set({ 
+        enrollments: [data, ...enrollments],
+        isLoading: false 
+      })
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to enroll in course' }
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
     }
   },
 
-  approveEnrollment: async (enrollmentId: string) => {
+  updateEnrollmentStatus: async (enrollmentId, status) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('course_enrollments')
+        .update({ status })
+        .eq('id', enrollmentId)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { enrollments } = get()
+      set({ 
+        enrollments: enrollments.map(e => e.id === enrollmentId ? data : e),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  // Material Management
+  fetchMaterials: async (courseId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('course_materials')
+        .select(`
+          *,
+          users!course_materials_uploaded_by_fkey(name, username)
+        `)
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      set({ materials: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  uploadMaterial: async (materialData) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('course_materials')
+        .insert(materialData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { materials } = get()
+      set({ 
+        materials: [data, ...materials],
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  deleteMaterial: async (id) => {
+    set({ isLoading: true, error: null })
     try {
       const { error } = await supabase
-        .from('course_enrollments')
-        .update({ status: 'approved' })
-        .eq('id', enrollmentId)
+        .from('course_materials')
+        .delete()
+        .eq('id', id)
 
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh enrollments list
-      const enrollment = get().enrollments.find(e => e.id === enrollmentId)
-      if (enrollment) {
-        await get().fetchEnrollments(enrollment.course_id)
-      }
+      if (error) throw error
+      
+      const { materials } = get()
+      set({ 
+        materials: materials.filter(m => m.id !== id),
+        isLoading: false 
+      })
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to approve enrollment' }
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
     }
   },
 
-  rejectEnrollment: async (enrollmentId: string) => {
+  // Announcement Management
+  fetchAnnouncements: async (courseId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('course_announcements')
+        .select(`
+          *,
+          users!course_announcements_created_by_fkey(name, username)
+        `)
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      set({ announcements: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  createAnnouncement: async (announcementData) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('course_announcements')
+        .insert(announcementData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { announcements } = get()
+      set({ 
+        announcements: [data, ...announcements],
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  updateAnnouncement: async (id, updates) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('course_announcements')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { announcements } = get()
+      set({ 
+        announcements: announcements.map(a => a.id === id ? data : a),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  deleteAnnouncement: async (id) => {
+    set({ isLoading: true, error: null })
     try {
       const { error } = await supabase
-        .from('course_enrollments')
-        .update({ status: 'rejected' })
-        .eq('id', enrollmentId)
+        .from('course_announcements')
+        .delete()
+        .eq('id', id)
 
-      if (error) {
-        return { success: false, error: error.message }
-      }
-
-      // Refresh enrollments list
-      const enrollment = get().enrollments.find(e => e.id === enrollmentId)
-      if (enrollment) {
-        await get().fetchEnrollments(enrollment.course_id)
-      }
+      if (error) throw error
+      
+      const { announcements } = get()
+      set({ 
+        announcements: announcements.filter(a => a.id !== id),
+        isLoading: false 
+      })
       return { success: true }
     } catch (error) {
-      return { success: false, error: 'Failed to reject enrollment' }
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
     }
   },
 
-  checkCourseCodeExists: async (code: string) => {
+  // Live Session Management
+  fetchLiveSessions: async (courseId) => {
+    set({ isLoading: true, error: null })
     try {
-      // Check in existing courses (for development with mock data)
-      const existingCourses = get().courses
-      const codeExists = existingCourses.some(course => course.code === code)
-      
-      // In a real implementation, this would check the database
-      // const { data, error } = await supabase
-      //   .from('courses')
-      //   .select('id')
-      //   .eq('code', code)
-      //   .single()
-      
-      // return !!data
-      
-      return codeExists
+      const { data, error } = await supabase
+        .from('live_sessions')
+        .select(`
+          *,
+          users!live_sessions_started_by_fkey(name, username)
+        `)
+        .eq('course_id', courseId)
+        .order('started_at', { ascending: false })
+
+      if (error) throw error
+      set({ liveSessions: data || [], isLoading: false })
     } catch (error) {
-      console.error('Error checking course code:', error)
-      return false
+      set({ error: (error as Error).message, isLoading: false })
     }
   },
+
+  startLiveSession: async (sessionData) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('live_sessions')
+        .insert(sessionData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { liveSessions } = get()
+      set({ 
+        liveSessions: [data, ...liveSessions],
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  endLiveSession: async (sessionId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('live_sessions')
+        .update({ 
+          is_active: false,
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', sessionId)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { liveSessions } = get()
+      set({ 
+        liveSessions: liveSessions.map(s => s.id === sessionId ? data : s),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  updateParticipantCount: async (sessionId, count) => {
+    try {
+      const { data, error } = await supabase
+        .from('live_sessions')
+        .update({ participant_count: count })
+        .eq('id', sessionId)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { liveSessions } = get()
+      set({ 
+        liveSessions: liveSessions.map(s => s.id === sessionId ? data : s)
+      })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  // Doubt Management
+  fetchDoubts: async (courseId, liveSessionId) => {
+    set({ isLoading: true, error: null })
+    try {
+      let query = supabase
+        .from('doubts')
+        .select(`
+          *,
+          users!doubts_student_id_fkey(name, username),
+          users!doubts_answered_by_fkey(name, username)
+        `)
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false })
+
+      if (liveSessionId) {
+        query = query.eq('live_session_id', liveSessionId)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+      set({ doubts: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  submitDoubt: async (doubtData) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('doubts')
+        .insert(doubtData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { doubts } = get()
+      set({ 
+        doubts: [data, ...doubts],
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  upvoteDoubt: async (doubtId, userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('doubt_upvotes')
+        .insert({
+          doubt_id: doubtId,
+          user_id: userId
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { doubtUpvotes } = get()
+      set({ doubtUpvotes: [data, ...doubtUpvotes] })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  removeUpvote: async (doubtId, userId) => {
+    try {
+      const { error } = await supabase
+        .from('doubt_upvotes')
+        .delete()
+        .eq('doubt_id', doubtId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+      
+      const { doubtUpvotes } = get()
+      set({ 
+        doubtUpvotes: doubtUpvotes.filter(u => !(u.doubt_id === doubtId && u.user_id === userId))
+      })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  answerDoubt: async (doubtId, answerText, answeredBy) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('doubts')
+        .update({
+          answered: true,
+          answered_by: answeredBy,
+          answered_at: new Date().toISOString(),
+          answer_text: answerText
+        })
+        .eq('id', doubtId)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { doubts } = get()
+      set({ 
+        doubts: doubts.map(d => d.id === doubtId ? data : d),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  // Live Poll Management
+  fetchPolls: async (liveSessionId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('live_polls')
+        .select(`
+          *,
+          users!live_polls_created_by_fkey(name, username)
+        `)
+        .eq('live_session_id', liveSessionId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      set({ livePolls: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  createPoll: async (pollData) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('live_polls')
+        .insert(pollData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { livePolls } = get()
+      set({ 
+        livePolls: [data, ...livePolls],
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  endPoll: async (pollId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('live_polls')
+        .update({ 
+          is_active: false,
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', pollId)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { livePolls } = get()
+      set({ 
+        livePolls: livePolls.map(p => p.id === pollId ? data : p),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  submitPollResponse: async (responseData) => {
+    try {
+      const { data, error } = await supabase
+        .from('poll_responses')
+        .insert(responseData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { pollResponses } = get()
+      set({ pollResponses: [data, ...pollResponses] })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  fetchPollResponses: async (pollId) => {
+    try {
+      const { data, error } = await supabase
+        .from('poll_responses')
+        .select(`
+          *,
+          users!poll_responses_user_id_fkey(name, username)
+        `)
+        .eq('poll_id', pollId)
+
+      if (error) throw error
+      set({ pollResponses: data || [] })
+    } catch (error) {
+      console.error('Error fetching poll responses:', error)
+    }
+  },
+
+  // Assignment Management
+  fetchAssignments: async (courseId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('assignments')
+        .select(`
+          *,
+          users!assignments_created_by_fkey(name, username)
+        `)
+        .eq('course_id', courseId)
+        .eq('is_active', true)
+        .order('due_date', { ascending: true })
+
+      if (error) throw error
+      set({ assignments: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  createAssignment: async (assignmentData) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('assignments')
+        .insert(assignmentData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { assignments } = get()
+      set({ 
+        assignments: [data, ...assignments],
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  updateAssignment: async (id, updates) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('assignments')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { assignments } = get()
+      set({ 
+        assignments: assignments.map(a => a.id === id ? data : a),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  deleteAssignment: async (id) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { error } = await supabase
+        .from('assignments')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      
+      const { assignments } = get()
+      set({ 
+        assignments: assignments.filter(a => a.id !== id),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  // Calendar Management
+  fetchCalendarEvents: async (courseId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select(`
+          *,
+          users!calendar_events_created_by_fkey(name, username)
+        `)
+        .eq('course_id', courseId)
+        .order('start_date', { ascending: true })
+
+      if (error) throw error
+      set({ calendarEvents: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  createCalendarEvent: async (eventData) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .insert(eventData)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { calendarEvents } = get()
+      set({ 
+        calendarEvents: [data, ...calendarEvents],
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  updateCalendarEvent: async (id, updates) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { calendarEvents } = get()
+      set({ 
+        calendarEvents: calendarEvents.map(e => e.id === id ? data : e),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  deleteCalendarEvent: async (id) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { error } = await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      
+      const { calendarEvents } = get()
+      set({ 
+        calendarEvents: calendarEvents.filter(e => e.id !== id),
+        isLoading: false 
+      })
+      return { success: true }
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  // Notification Management
+  fetchNotifications: async (userId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      set({ notifications: data || [], isLoading: false })
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false })
+    }
+  },
+
+  markNotificationAsRead: async (notificationId) => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const { notifications } = get()
+      set({ 
+        notifications: notifications.map(n => n.id === notificationId ? data : n)
+      })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  markAllNotificationsAsRead: async (userId) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false)
+
+      if (error) throw error
+      
+      const { notifications } = get()
+      set({ 
+        notifications: notifications.map(n => ({ ...n, is_read: true }))
+      })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  deleteNotification: async (notificationId) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+
+      if (error) throw error
+      
+      const { notifications } = get()
+      set({ 
+        notifications: notifications.filter(n => n.id !== notificationId)
+      })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  },
+
+  // Utility
+  clearError: () => set({ error: null }),
+  clearStore: () => set({
+    courses: [],
+    enrollments: [],
+    materials: [],
+    announcements: [],
+    liveSessions: [],
+    doubts: [],
+    doubtUpvotes: [],
+    livePolls: [],
+    pollResponses: [],
+    assignments: [],
+    calendarEvents: [],
+    notifications: [],
+    isLoading: false,
+    error: null
+  })
 }))
 
 export default useCourseStore 

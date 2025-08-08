@@ -24,8 +24,8 @@ export default function CoursesPage() {
       if (user.role === 'professor') {
         fetchProfessorCourses(user.id)
       } else {
-        fetchEnrolledCourses(user.id)
-      }
+      fetchEnrolledCourses(user.id)
+    }
     }
   }, [user, fetchEnrolledCourses, fetchProfessorCourses])
 
@@ -101,50 +101,50 @@ export default function CoursesPage() {
                className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150"
                onClick={() => setShowEnrollmentModal(true)}
              >
-               <Plus className="w-4 h-4 mr-2" />
-               Join New Course
-             </Button>
+          <Plus className="w-4 h-4 mr-2" />
+          Join New Course
+        </Button>
           )}
         </div>
       </motion.div>
 
       {/* Search and Filter */}
       {user?.role === 'student' ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="flex flex-col sm:flex-row gap-4"
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search courses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex gap-2">
-                         <Button
-               variant={filter === 'all' ? 'default' : 'outline'}
-               onClick={() => setFilter('all')}
-               size="sm"
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="flex flex-col sm:flex-row gap-4"
+      >
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Search courses..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={filter === 'all' ? 'default' : 'outline'}
+            onClick={() => setFilter('all')}
+            size="sm"
                className="active:scale-95 transition-all duration-150"
-             >
-               All Courses
-             </Button>
-             <Button
-               variant={filter === 'enrolled' ? 'default' : 'outline'}
-               onClick={() => setFilter('enrolled')}
-               size="sm"
+          >
+            All Courses
+          </Button>
+          <Button
+            variant={filter === 'enrolled' ? 'default' : 'outline'}
+            onClick={() => setFilter('enrolled')}
+            size="sm"
                className="active:scale-95 transition-all duration-150"
-             >
+          >
                Enrolled ({studentCourses.length})
-             </Button>
-          </div>
-        </motion.div>
+          </Button>
+        </div>
+      </motion.div>
       ) : (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -214,7 +214,11 @@ export default function CoursesPage() {
                ) : (
                  <div className="space-y-4">
                    {filteredProfessorCourses.map((course) => (
-                    <div key={course.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <div 
+                      key={course.id} 
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/dashboard/courses/${course.id}`)}
+                    >
                       <div className="flex items-center space-x-4">
                         <div className="p-2 bg-blue-100 rounded-lg">
                           <BookOpen className="w-5 h-5 text-blue-600" />
@@ -236,7 +240,10 @@ export default function CoursesPage() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => router.push(`/dashboard/courses/${course.id}/materials`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/dashboard/courses/${course.id}/materials`)
+                          }}
                         >
                           <FileText className="w-4 h-4 mr-1" />
                           Materials
@@ -244,7 +251,10 @@ export default function CoursesPage() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => router.push(`/dashboard/courses/${course.id}/live`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/dashboard/courses/${course.id}/live`)
+                          }}
                         >
                           <Video className="w-4 h-4 mr-1" />
                           Live
@@ -286,8 +296,8 @@ export default function CoursesPage() {
                   ))}
                 </div>
                              ) : filteredStudentCourses.length === 0 ? (
-                 <div className="text-center py-8">
-                   <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <div className="text-center py-8">
+                  <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                    <h3 className="text-lg font-medium text-gray-900 mb-2">
                      {searchTerm ? 'No courses found' : 'No courses enrolled'}
                    </h3>
@@ -301,14 +311,18 @@ export default function CoursesPage() {
                      className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150 text-white"
                      onClick={() => setShowEnrollmentModal(true)}
                    >
-                     <Plus className="w-4 h-4 mr-2" />
-                     Join Your First Course
-                   </Button>
-                 </div>
-               ) : (
-                 <div className="space-y-4">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Join Your First Course
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
                    {filteredStudentCourses.map((course) => (
-                    <div key={course.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <div 
+                      key={course.id} 
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/dashboard/courses/${course.id}`)}
+                    >
                       <div className="flex items-center space-x-4">
                         <div className="p-2 bg-blue-100 rounded-lg">
                           <BookOpen className="w-5 h-5 text-blue-600" />
@@ -330,7 +344,10 @@ export default function CoursesPage() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => router.push(`/dashboard/courses/${course.id}/materials`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/dashboard/courses/${course.id}/materials`)
+                          }}
                         >
                           <FileText className="w-4 h-4 mr-1" />
                           Materials
@@ -338,7 +355,10 @@ export default function CoursesPage() {
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => router.push(`/dashboard/courses/${course.id}/live`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/dashboard/courses/${course.id}/live`)
+                          }}
                         >
                           <Video className="w-4 h-4 mr-1" />
                           Live

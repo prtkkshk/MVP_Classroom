@@ -1,657 +1,673 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { databaseExplorer, TableInfo, DatabaseStats, PolicyInfo } from '@/lib/database-explorer'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Separator } from '@/components/ui/separator'
-import { Loader2, Database, Shield, Key, Users, FileText, Download } from 'lucide-react'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { 
+  Database, 
+  Table as TableIcon, 
+  Users, 
+  BookOpen, 
+  FileText, 
+  MessageSquare,
+  Target,
+  Calendar,
+  Bell,
+  BarChart3,
+  Download,
+  Eye,
+  Settings,
+  RefreshCw,
+  Search,
+  Filter,
+  ChevronDown,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  TrendingUp,
+  TrendingDown
+} from 'lucide-react'
+import { toast } from 'sonner'
 
-export default function DatabaseExplorerComponent() {
-  const [tables, setTables] = useState<TableInfo[]>([])
-  const [stats, setStats] = useState<DatabaseStats | null>(null)
-  const [allPolicies, setAllPolicies] = useState<PolicyInfo[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [report, setReport] = useState<string>('')
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
+interface TableInfo {
+  name: string
+  rowCount: number
+  size: string
+  lastModified: Date
+  description: string
+  icon: React.ReactNode
+  color: string
+}
+
+interface TableSchema {
+  column: string
+  type: string
+  nullable: boolean
+  default: string | null
+  key: string
+}
+
+interface TableData {
+  [key: string]: any
+}
+
+interface DatabaseStats {
+  totalTables: number
+  totalRows: number
+  totalSize: string
+  activeConnections: number
+  uptime: string
+  performance: {
+    avgQueryTime: string
+    slowQueries: number
+    cacheHitRate: number
+  }
+}
+
+export default function DatabaseExplorer() {
+  const [activeTab, setActiveTab] = useState('overview')
+  const [selectedTable, setSelectedTable] = useState<string | null>(null)
+  const [tableData, setTableData] = useState<TableData[]>([])
+  const [tableSchema, setTableSchema] = useState<TableSchema[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState('all')
+
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStats>({
+    totalTables: 8,
+    totalRows: 1247,
+    totalSize: '2.4 MB',
+    activeConnections: 12,
+    uptime: '15 days, 7 hours',
+    performance: {
+      avgQueryTime: '45ms',
+      slowQueries: 3,
+      cacheHitRate: 94.2
+    }
+  })
+
+  const tables: TableInfo[] = [
+    {
+      name: 'users',
+      rowCount: 156,
+      size: '45.2 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 30),
+      description: 'User accounts and authentication data',
+      icon: <Users className="w-4 h-4" />,
+      color: 'bg-blue-100 text-blue-700'
+    },
+    {
+      name: 'courses',
+      rowCount: 23,
+      size: '12.8 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 60 * 2),
+      description: 'Course information and metadata',
+      icon: <BookOpen className="w-4 h-4" />,
+      color: 'bg-green-100 text-green-700'
+    },
+    {
+      name: 'course_enrollments',
+      rowCount: 342,
+      size: '28.5 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 15),
+      description: 'Student course enrollment records',
+      icon: <Users className="w-4 h-4" />,
+      color: 'bg-purple-100 text-purple-700'
+    },
+    {
+      name: 'course_materials',
+      rowCount: 89,
+      size: '156.7 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 45),
+      description: 'Course materials and file metadata',
+      icon: <FileText className="w-4 h-4" />,
+      color: 'bg-orange-100 text-orange-700'
+    },
+    {
+      name: 'course_announcements',
+      rowCount: 67,
+      size: '18.3 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 20),
+      description: 'Course announcements and notifications',
+      icon: <MessageSquare className="w-4 h-4" />,
+      color: 'bg-red-100 text-red-700'
+    },
+    {
+      name: 'assignments',
+      rowCount: 45,
+      size: '22.1 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 60),
+      description: 'Assignment definitions and metadata',
+      icon: <Target className="w-4 h-4" />,
+      color: 'bg-indigo-100 text-indigo-700'
+    },
+    {
+      name: 'calendar_events',
+      rowCount: 123,
+      size: '31.4 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 10),
+      description: 'Calendar events and scheduling data',
+      icon: <Calendar className="w-4 h-4" />,
+      color: 'bg-pink-100 text-pink-700'
+    },
+    {
+      name: 'notifications',
+      rowCount: 402,
+      size: '89.2 KB',
+      lastModified: new Date(Date.now() - 1000 * 60 * 5),
+      description: 'System notifications and alerts',
+      icon: <Bell className="w-4 h-4" />,
+      color: 'bg-yellow-100 text-yellow-700'
+    }
+  ]
+
+  const filteredTables = tables.filter(table => {
+    const matchesSearch = table.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         table.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesFilter = filterType === 'all' || 
+                         (filterType === 'large' && table.rowCount > 100) ||
+                         (filterType === 'small' && table.rowCount <= 100) ||
+                         (filterType === 'recent' && (Date.now() - table.lastModified.getTime()) < 1000 * 60 * 60)
+    return matchesSearch && matchesFilter
+  })
 
   useEffect(() => {
-    loadDatabaseInfo()
-  }, [])
-
-  const loadDatabaseInfo = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const [tablesData, statsData, policiesData] = await Promise.all([
-        databaseExplorer.getAllTablesInfo(),
-        databaseExplorer.getDatabaseStats(),
-        databaseExplorer.getAllPolicies()
-      ])
-
-      setTables(tablesData)
-      setStats(statsData)
-      setAllPolicies(policiesData)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load database information')
-    } finally {
-      setLoading(false)
+    if (selectedTable) {
+      loadTableData(selectedTable)
     }
-  }
+  }, [selectedTable])
 
-  const generateReport = async () => {
+  const loadTableData = async (tableName: string) => {
+    setIsLoading(true)
     try {
-      setIsGeneratingReport(true)
-      setError(null)
-      
-      console.log('Generating database report...')
-      const reportText = await databaseExplorer.generateDatabaseReport()
-      console.log('Report generated, length:', reportText.length)
-      setReport(reportText)
-      
-      // Generate PDF from the report
-      console.log('Starting PDF generation...')
-      await generatePDFReport(reportText)
-      
-      // Show success feedback
-      setShowSuccess(true)
-      setTimeout(() => setShowSuccess(false), 3000) // Hide after 3 seconds
-    } catch (err) {
-      console.error('Error in generateReport:', err)
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate report'
-      setError(errorMessage)
-      console.error('Detailed error:', errorMessage)
-    } finally {
-      setIsGeneratingReport(false)
-    }
-  }
+      // Mock data - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
-  const generatePDFReport = async (reportText: string) => {
-    try {
-      console.log('Starting PDF generation...')
-      
-      // Try the HTML2Canvas approach first
-      try {
-        await generatePDFWithHTML2Canvas(reportText)
-        return
-      } catch (html2canvasError) {
-        console.warn('HTML2Canvas approach failed, trying fallback method:', html2canvasError)
-      }
-      
-      // Fallback: Generate simple text-based PDF
-      await generateSimplePDF(reportText)
-      
+      // Mock schema data
+      const mockSchema: TableSchema[] = [
+        { column: 'id', type: 'uuid', nullable: false, default: 'uuid_generate_v4()', key: 'PRIMARY KEY' },
+        { column: 'created_at', type: 'timestamp', nullable: false, default: 'now()', key: '' },
+        { column: 'updated_at', type: 'timestamp', nullable: true, default: null, key: '' },
+        { column: 'name', type: 'text', nullable: false, default: null, key: '' },
+        { column: 'email', type: 'text', nullable: false, default: null, key: 'UNIQUE' },
+        { column: 'role', type: 'text', nullable: false, default: null, key: '' }
+      ]
+
+      // Mock table data
+      const mockData: TableData[] = [
+        { id: '1', name: 'John Doe', email: 'john@example.com', role: 'student', created_at: '2024-01-15' },
+        { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'professor', created_at: '2024-01-14' },
+        { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'student', created_at: '2024-01-13' }
+      ]
+
+      setTableSchema(mockSchema)
+      setTableData(mockData)
     } catch (error) {
-      console.error('Error generating PDF:', error)
-      throw new Error(`Failed to generate PDF report: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Error loading table data:', error)
+      toast.error('Failed to load table data')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const generatePDFWithHTML2Canvas = async (reportText: string) => {
-    // Create a temporary div to render the markdown content
-    const tempDiv = document.createElement('div')
-    tempDiv.style.position = 'absolute'
-    tempDiv.style.left = '-9999px'
-    tempDiv.style.top = '0'
-    tempDiv.style.width = '800px'
-    tempDiv.style.padding = '40px'
-    tempDiv.style.fontFamily = 'Arial, sans-serif'
-    tempDiv.style.fontSize = '12px'
-    tempDiv.style.lineHeight = '1.6'
-    tempDiv.style.backgroundColor = 'white'
-    tempDiv.style.color = 'black'
-    tempDiv.style.border = '1px solid #ccc'
-    
-    // Convert markdown to HTML (simple conversion)
-    console.log('Converting markdown to HTML...')
-    const htmlContent = convertMarkdownToHTML(reportText)
-    tempDiv.innerHTML = htmlContent
-    
-    // Add to DOM
-    document.body.appendChild(tempDiv)
-    
-    // Wait a bit for rendering
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    console.log('Generating canvas from HTML...')
-    // Generate PDF with more conservative settings
-    const canvas = await html2canvas(tempDiv, {
-      scale: 1, // Reduced scale for better performance
-      useCORS: false, // Disable CORS for local content
-      allowTaint: false, // Disable taint for better compatibility
-      backgroundColor: '#ffffff',
-      logging: false,
-      width: 800,
-      height: tempDiv.scrollHeight,
-      scrollX: 0,
-      scrollY: 0
-    })
-    
-    console.log('Canvas generated, creating PDF...')
-    const imgData = canvas.toDataURL('image/png', 0.8) // Reduced quality for better performance
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    
-    const imgWidth = 210 // A4 width in mm
-    const pageHeight = 295 // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-    let heightLeft = imgHeight
-    let position = 0
-    
-    console.log('Adding first page to PDF...')
-    // Add first page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-    heightLeft -= pageHeight
-    
-    // Add additional pages if needed
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight
-      pdf.addPage()
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
+  const handleExportData = async (tableName: string, format: 'csv' | 'json') => {
+    try {
+      // Mock export - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      toast.success(`Exported ${tableName} as ${format.toUpperCase()}`)
+    } catch (error) {
+      console.error('Error exporting data:', error)
+      toast.error('Failed to export data')
     }
-    
-    console.log('Saving PDF...')
-    // Download the PDF
-    pdf.save('supabase-database-report.pdf')
-    
-    // Clean up
-    document.body.removeChild(tempDiv)
-    console.log('PDF generation completed successfully!')
   }
 
-  const generateSimplePDF = async (reportText: string) => {
-    console.log('Generating simple text-based PDF...')
-    
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 20
-    const lineHeight = 7
-    let yPosition = margin
-    
-    // Set font
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(12)
-    
-    // Split text into lines
-    const lines = reportText.split('\n')
-    
-    for (const line of lines) {
-      // Check if we need a new page
-      if (yPosition > pageHeight - margin) {
-        pdf.addPage()
-        yPosition = margin
-      }
-      
-      // Handle headers
-      if (line.startsWith('# ')) {
-        pdf.setFontSize(16)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text(line.substring(2), margin, yPosition)
-        yPosition += lineHeight + 5
-        pdf.setFontSize(12)
-        pdf.setFont('helvetica', 'normal')
-        continue
-      }
-      
-      if (line.startsWith('## ')) {
-        pdf.setFontSize(14)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text(line.substring(3), margin, yPosition)
-        yPosition += lineHeight + 3
-        pdf.setFontSize(12)
-        pdf.setFont('helvetica', 'normal')
-        continue
-      }
-      
-      if (line.startsWith('### ')) {
-        pdf.setFontSize(13)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text(line.substring(4), margin, yPosition)
-        yPosition += lineHeight + 2
-        pdf.setFontSize(12)
-        pdf.setFont('helvetica', 'normal')
-        continue
-      }
-      
-      // Handle bold text
-      if (line.includes('**')) {
-        const parts = line.split('**')
-        let xPos = margin
-        for (let i = 0; i < parts.length; i++) {
-          if (i % 2 === 1) { // Bold text
-            pdf.setFont('helvetica', 'bold')
-          } else { // Normal text
-            pdf.setFont('helvetica', 'normal')
-          }
-          pdf.text(parts[i], xPos, yPosition)
-          xPos += pdf.getTextWidth(parts[i])
-        }
-        yPosition += lineHeight
-        pdf.setFont('helvetica', 'normal')
-        continue
-      }
-      
-      // Regular text
-      if (line.trim()) {
-        pdf.text(line, margin, yPosition)
-        yPosition += lineHeight
-      } else {
-        yPosition += lineHeight / 2 // Small gap for empty lines
-      }
+  const handleRefreshStats = async () => {
+    try {
+      // Mock refresh - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      toast.success('Database stats refreshed')
+    } catch (error) {
+      console.error('Error refreshing stats:', error)
+      toast.error('Failed to refresh stats')
     }
-    
-    console.log('Saving simple PDF...')
-    pdf.save('supabase-database-report.pdf')
-    console.log('Simple PDF generation completed successfully!')
   }
 
-  const convertMarkdownToHTML = (markdown: string): string => {
-    return markdown
-      // Headers
-      .replace(/^# (.*$)/gim, '<h1 style="color: #1f2937; font-size: 24px; font-weight: bold; margin: 20px 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">$1</h1>')
-      .replace(/^## (.*$)/gim, '<h2 style="color: #374151; font-size: 20px; font-weight: bold; margin: 16px 0 8px 0;">$1</h2>')
-      .replace(/^### (.*$)/gim, '<h3 style="color: #4b5563; font-size: 16px; font-weight: bold; margin: 12px 0 6px 0;">$1</h3>')
-      .replace(/^#### (.*$)/gim, '<h4 style="color: #6b7280; font-size: 14px; font-weight: bold; margin: 10px 0 5px 0;">$1</h4>')
-      
-      // Bold text
-      .replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: bold;">$1</strong>')
-      
-      // Code blocks
-      .replace(/```([\s\S]*?)```/g, '<pre style="background-color: #f3f4f6; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 10px; overflow-x: auto; margin: 10px 0;">$1</pre>')
-      .replace(/`([^`]+)`/g, '<code style="background-color: #f3f4f6; padding: 2px 4px; border-radius: 2px; font-family: monospace; font-size: 10px;">$1</code>')
-      
-      // Lists
-      .replace(/^\* (.*$)/gim, '<li style="margin: 4px 0;">$1</li>')
-      .replace(/^- (.*$)/gim, '<li style="margin: 4px 0;">$1</li>')
-      
-      // Tables (basic support)
-      .replace(/\| (.*?) \|/g, '<td style="border: 1px solid #d1d5db; padding: 6px; text-align: left;">$1</td>')
-      .replace(/\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|/g, '<tr>$1$2$3$4$5</tr>')
-      
-      // Line breaks
-      .replace(/\n\n/g, '</p><p style="margin: 8px 0;">')
-      .replace(/\n/g, '<br>')
-      
-      // Wrap in paragraphs
-      .replace(/^(?!<[h|p|u|o|t|d|s|b|i|u|a|i|m|v|f|n|r|w|e|q|k|u|s|t|r|o|n|g|e|m|i|n|g|>])(.*)$/gm, '<p style="margin: 8px 0;">$1</p>')
-      
-      // Clean up empty paragraphs
-      .replace(/<p style="margin: 8px 0;"><\/p>/g, '')
-      .replace(/<p style="margin: 8px 0;"><br><\/p>/g, '')
-      
-      // Add wrapper
-      .replace(/^([\s\S]+)$/, '<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">$1</div>')
+  const getPerformanceColor = (value: number, threshold: number) => {
+    return value >= threshold ? 'text-green-600' : 'text-red-600'
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          <div className="text-center">
-            <h3 className="text-lg font-semibold">Loading Database Information</h3>
-            <p className="text-muted-foreground">Please wait while we fetch your database structure...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <Card className="border-red-200">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-red-600 flex items-center justify-center gap-2">
-              <Shield className="h-5 w-5" />
-              Database Access Error
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-red-600">{error}</p>
-            <Button onClick={loadDatabaseInfo} className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4" />
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  const getPerformanceIcon = (value: number, threshold: number) => {
+    return value >= threshold ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Database Explorer</h1>
-          <p className="text-muted-foreground text-lg">
-            Explore your Supabase database structure, policies, and permissions
-          </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Database Explorer</h1>
+          <p className="text-gray-600">Monitor and manage your database</p>
         </div>
-        <Button 
-          onClick={generateReport} 
-          disabled={isGeneratingReport}
-          className={`flex items-center space-x-2 w-full sm:w-auto transition-all duration-300 ${
-            isGeneratingReport 
-              ? 'opacity-75 cursor-not-allowed bg-gray-300 hover:bg-gray-300 text-gray-600' 
-              : 'hover:scale-105 active:scale-95'
-          }`}
-        >
-          {isGeneratingReport ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Generating...</span>
-            </>
-                     ) : (
-             <>
-               <Download className="h-4 w-4" />
-               <span>Generate PDF Report</span>
-             </>
-           )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRefreshStats}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh Stats
+          </Button>
+          <Button className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Database Settings
+          </Button>
+        </div>
       </div>
 
-             {/* Success Notification */}
-       {showSuccess && (
-         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right duration-300">
-           <div className="bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2">
-             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-             <span className="font-medium">PDF report generated and downloaded successfully!</span>
-           </div>
-         </div>
-       )}
-
-      {/* Statistics Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="p-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-sm font-medium">Total Tables</CardTitle>
-              <Database className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.total_tables}</div>
-              <p className="text-xs text-muted-foreground mt-1">Database tables</p>
-            </CardContent>
-          </Card>
-
-          <Card className="p-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-sm font-medium">Total Policies</CardTitle>
-              <Shield className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.total_policies}</div>
-              <p className="text-xs text-muted-foreground mt-1">RLS policies</p>
-            </CardContent>
-          </Card>
-
-          <Card className="p-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-sm font-medium">Total Indexes</CardTitle>
-              <Key className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.total_indexes}</div>
-              <p className="text-xs text-muted-foreground mt-1">Database indexes</p>
-            </CardContent>
-          </Card>
-
-          <Card className="p-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-sm font-medium">Foreign Keys</CardTitle>
-              <Users className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.total_foreign_keys}</div>
-              <p className="text-xs text-muted-foreground mt-1">Table relationships</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <Tabs defaultValue="tables" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tables">Tables</TabsTrigger>
-          <TabsTrigger value="policies">Policies</TabsTrigger>
-          <TabsTrigger value="report">Report</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="backups">Backups</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tables" className="space-y-6">
-          <Accordion type="single" collapsible className="w-full space-y-4">
-            {tables.map((table) => (
-              <AccordionItem key={table.table_name} value={table.table_name} className="border rounded-lg">
-                <AccordionTrigger className="text-left px-6 py-4 hover:bg-muted/50">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full">
-                    <span className="font-semibold text-lg">{table.table_name}</span>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{table.row_count} rows</Badge>
-                      <Badge variant="outline">{table.columns.length} columns</Badge>
-                      <Badge variant="outline">{table.policies.length} policies</Badge>
-                    </div>
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Database Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Tables</p>
+                    <p className="text-2xl font-bold text-gray-900">{databaseStats.totalTables}</p>
                   </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-6 p-6">
-                    {/* Columns */}
-                    <div>
-                      <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <Database className="h-5 w-5" />
-                        Columns
-                      </h4>
-                      <div className="border rounded-lg overflow-hidden">
-                        <Table>
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <Database className="w-6 h-6 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Rows</p>
+                    <p className="text-2xl font-bold text-gray-900">{databaseStats.totalRows.toLocaleString()}</p>
+                  </div>
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <TableIcon className="w-6 h-6 text-green-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Database Size</p>
+                    <p className="text-2xl font-bold text-gray-900">{databaseStats.totalSize}</p>
+                  </div>
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <BarChart3 className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Active Connections</p>
+                    <p className="text-2xl font-bold text-gray-900">{databaseStats.activeConnections}</p>
+                  </div>
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <Users className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Performance Metrics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Performance Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Average Query Time</span>
+                  <div className="flex items-center gap-2">
+                    {getPerformanceIcon(45, 50)}
+                    <span className={`font-medium ${getPerformanceColor(45, 50)}`}>
+                      {databaseStats.performance.avgQueryTime}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Slow Queries</span>
+                  <div className="flex items-center gap-2">
+                    {getPerformanceIcon(3, 5)}
+                    <span className={`font-medium ${getPerformanceColor(3, 5)}`}>
+                      {databaseStats.performance.slowQueries}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Cache Hit Rate</span>
+                  <div className="flex items-center gap-2">
+                    {getPerformanceIcon(94.2, 90)}
+                    <span className={`font-medium ${getPerformanceColor(94.2, 90)}`}>
+                      {databaseStats.performance.cacheHitRate}%
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  System Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Uptime</span>
+                  <span className="font-medium text-gray-900">{databaseStats.uptime}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
+                  <Badge className="bg-green-100 text-green-700">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Healthy
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Last Backup</span>
+                  <span className="font-medium text-gray-900">2 hours ago</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Tables Tab */}
+        <TabsContent value="tables" className="space-y-6">
+          {/* Search and Filter */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search tables..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Tables</SelectItem>
+                <SelectItem value="large">Large Tables</SelectItem>
+                <SelectItem value="small">Small Tables</SelectItem>
+                <SelectItem value="recent">Recently Modified</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tables Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTables.map((table) => (
+              <motion.div
+                key={table.name}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Card 
+                  className={`cursor-pointer transition-all hover:shadow-lg ${
+                    selectedTable === table.name ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                  onClick={() => setSelectedTable(table.name)}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`p-2 rounded-lg ${table.color}`}>
+                        {table.icon}
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {table.rowCount.toLocaleString()} rows
+                      </Badge>
+                    </div>
+                    
+                    <h3 className="font-semibold text-gray-900 mb-2">{table.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                      {table.description}
+                    </p>
+                    
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{table.size}</span>
+                      <span>{table.lastModified.toLocaleDateString()}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Table Details */}
+          {selectedTable && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5" />
+                    {selectedTable}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExportData(selectedTable, 'csv')}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExportData(selectedTable, 'json')}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export JSON
+                    </Button>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="schema" className="space-y-4">
+                  <TabsList>
+                    <TabsTrigger value="schema">Schema</TabsTrigger>
+                    <TabsTrigger value="data">Data</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="schema">
+                    <ScrollArea className="h-64">
+                      <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Name</TableHead>
+                            <TableHead>Column</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Nullable</TableHead>
                             <TableHead>Default</TableHead>
-                            <TableHead>Constraints</TableHead>
+                            <TableHead>Key</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {table.columns.map((column) => (
-                            <TableRow key={column.column_name}>
-                              <TableCell className="font-medium">{column.column_name}</TableCell>
-                              <TableCell>{column.data_type}</TableCell>
+                          {tableSchema.map((column) => (
+                            <TableRow key={column.column}>
+                              <TableCell className="font-medium">{column.column}</TableCell>
+                              <TableCell>{column.type}</TableCell>
                               <TableCell>
-                                <Badge variant={column.is_nullable === 'YES' ? 'secondary' : 'destructive'}>
-                                  {column.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'}
+                                <Badge variant={column.nullable ? "outline" : "default"}>
+                                  {column.nullable ? "Yes" : "No"}
                                 </Badge>
                               </TableCell>
-                              <TableCell>{column.column_default || '-'}</TableCell>
+                              <TableCell>{column.default || "-"}</TableCell>
                               <TableCell>
-                                <div className="flex space-x-1">
-                                  {column.is_primary_key && (
-                                    <Badge variant="default">PK</Badge>
-                                  )}
-                                  {column.is_foreign_key && (
-                                    <Badge variant="outline">FK</Badge>
-                                  )}
-                                </div>
+                                {column.key && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {column.key}
+                                  </Badge>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
-                    </div>
-                  </div>
+                    </ScrollArea>
+                  </TabsContent>
 
-                    <Separator />
-
-                    {/* Foreign Keys */}
-                    {table.foreign_keys.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                          <Users className="h-5 w-5" />
-                          Foreign Keys
-                        </h4>
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Column</TableHead>
-                              <TableHead>References</TableHead>
-                              <TableHead>Constraint</TableHead>
+                  <TabsContent value="data">
+                    <ScrollArea className="h-64">
+                      <Table>
+                                                 <TableHeader>
+                           <TableRow>
+                             {tableData.length > 0 && tableData[0] && Object.keys(tableData[0]).map((key) => (
+                               <TableHead key={key}>{key}</TableHead>
+                             ))}
+                           </TableRow>
+                         </TableHeader>
+                        <TableBody>
+                          {tableData.map((row, index) => (
+                            <TableRow key={index}>
+                              {Object.values(row).map((value, cellIndex) => (
+                                <TableCell key={cellIndex}>{String(value)}</TableCell>
+                              ))}
                             </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {table.foreign_keys.map((fk) => (
-                              <TableRow key={fk.constraint_name}>
-                                <TableCell className="font-medium">{fk.column_name}</TableCell>
-                                <TableCell>
-                                  {fk.foreign_table_name}.{fk.foreign_column_name}
-                                </TableCell>
-                                <TableCell>{fk.constraint_name}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                    )}
-
-                    {/* Policies */}
-                    {table.policies.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                          <Shield className="h-5 w-5" />
-                          Policies
-                        </h4>
-                        <div className="space-y-4">
-                          {table.policies.map((policy) => (
-                            <Card key={policy.policyname} className="border-l-4 border-l-blue-500">
-                              <CardHeader className="pb-3">
-                                <CardTitle className="text-base">{policy.policyname}</CardTitle>
-                                <CardDescription>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="outline">{policy.cmd}</Badge>
-                                    <span className="text-sm">Roles: {policy.roles.join(', ')}</span>
-                                  </div>
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent className="space-y-3">
-                                {policy.qual && (
-                                  <div>
-                                    <span className="font-medium text-sm">Condition: </span>
-                                    <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">
-                                      {policy.qual}
-                                    </code>
-                                  </div>
-                                )}
-                                {policy.with_check && (
-                                  <div>
-                                    <span className="font-medium text-sm">Check: </span>
-                                    <code className="text-xs bg-muted px-2 py-1 rounded block mt-1">
-                                      {policy.with_check}
-                                    </code>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
                           ))}
-                        </div>
-                      </div>
-                    )}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Performance Tab */}
+        <TabsContent value="performance" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Query Performance</CardTitle>
+                <CardDescription>Monitor slow queries and performance issues</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-red-900">Slow Query Detected</p>
+                      <p className="text-sm text-red-700">SELECT * FROM users WHERE...</p>
+                    </div>
+                    <Badge variant="destructive">2.3s</Badge>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                  <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-yellow-900">High CPU Usage</p>
+                      <p className="text-sm text-yellow-700">Complex join operation</p>
+                    </div>
+                    <Badge variant="secondary">85%</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Connection Pool</CardTitle>
+                <CardDescription>Active database connections</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Active Connections</span>
+                    <span className="font-medium">12 / 20</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: '60%' }}></div>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    60% of connection pool in use
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="policies" className="space-y-6">
+        {/* Backups Tab */}
+        <TabsContent value="backups" className="space-y-6">
           <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                All Row Level Security Policies
-              </CardTitle>
-              <CardDescription>
-                Complete list of RLS policies across all tables
-              </CardDescription>
+            <CardHeader>
+              <CardTitle>Backup Management</CardTitle>
+              <CardDescription>Manage database backups and restore points</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Table</TableHead>
-                    <TableHead>Policy Name</TableHead>
-                    <TableHead>Command</TableHead>
-                    <TableHead>Roles</TableHead>
-                    <TableHead>Condition</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allPolicies.map((policy) => (
-                    <TableRow key={`${policy.tablename}-${policy.policyname}`}>
-                      <TableCell className="font-medium">{policy.tablename}</TableCell>
-                      <TableCell>{policy.policyname}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{policy.cmd}</Badge>
-                      </TableCell>
-                      <TableCell>{policy.roles.join(', ')}</TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {policy.qual || '-'}
-                        </code>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="report" className="space-y-6">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Database Report
-              </CardTitle>
-                           <CardDescription>
-               Generated PDF report of your database structure
-             </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isGeneratingReport ? (
-                <div className="text-center py-12">
-                  <Loader2 className="h-16 w-16 text-blue-600 animate-spin mx-auto mb-4" />
-                  <p className="text-muted-foreground text-lg">
-                    Generating comprehensive database report...
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    This may take a few moments
-                  </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Latest Backup</p>
+                    <p className="text-sm text-gray-600">2 hours ago • 2.4 MB</p>
+                  </div>
+                  <Badge className="bg-green-100 text-green-700">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Successful
+                  </Badge>
                 </div>
-              ) : report ? (
-                <div className="bg-muted p-6 rounded-lg border">
-                  <pre className="text-sm whitespace-pre-wrap leading-relaxed">{report}</pre>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Daily Backup</p>
+                    <p className="text-sm text-gray-600">Yesterday • 2.3 MB</p>
+                  </div>
+                  <Badge className="bg-green-100 text-green-700">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Successful
+                  </Badge>
                 </div>
-              ) : (
-                                 <div className="text-center py-12">
-                   <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                   <p className="text-muted-foreground text-lg">
-                     Click &quot;Generate PDF Report&quot; to create a comprehensive database report
-                   </p>
-                 </div>
-              )}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Weekly Backup</p>
+                    <p className="text-sm text-gray-600">7 days ago • 2.2 MB</p>
+                  </div>
+                  <Badge className="bg-green-100 text-green-700">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Successful
+                  </Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

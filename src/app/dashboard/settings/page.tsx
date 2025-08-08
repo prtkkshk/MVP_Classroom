@@ -1,87 +1,153 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Settings, Camera, Instagram, Linkedin, Save, User, Mail, Lock, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { 
+  User, 
+  Bell, 
+  Shield, 
+  Palette, 
+  Save, 
+  Upload, 
+  Eye, 
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
+  Trash2,
+  Download,
+  Globe,
+  Clock
+} from 'lucide-react'
 import useAuthStore from '@/store/authStore'
+import { toast } from 'sonner'
 
 export default function SettingsPage() {
-  const { user } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
-  const [profileImage, setProfileImage] = useState<string | null>(null)
-  const [socialProfiles, setSocialProfiles] = useState({
-    instagram: '',
-    linkedin: ''
+  const [showPassword, setShowPassword] = useState(false)
+  
+  // Profile form state
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    username: user?.username || '',
+    bio: '',
+    department: '',
+    specialization: '',
+    experience: ''
   })
-  const [showChangePassword, setShowChangePassword] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [passwordData, setPasswordData] = useState({
+
+  // Password form state
+  const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   })
-  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setProfileImage(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+  // Notification preferences
+  const [notifications, setNotifications] = useState({
+    emailNotifications: true,
+    pushNotifications: true,
+    courseUpdates: true,
+    liveSessionReminders: true,
+    assignmentDeadlines: true,
+    doubtResponses: true,
+    enrollmentRequests: true,
+    systemUpdates: true
+  })
+
+  // Theme preferences
+  const [theme, setTheme] = useState('light')
+  const [language, setLanguage] = useState('en')
+  const [timezone, setTimezone] = useState('UTC')
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        email: user.email || '',
+        username: user.username || '',
+        bio: user.bio || '',
+        department: user.department || '',
+        specialization: user.specialization || '',
+        experience: user.experience || ''
+      })
     }
-  }
+  }, [user])
 
-  const handleSocialProfileChange = (platform: 'instagram' | 'linkedin', value: string) => {
-    setSocialProfiles(prev => ({
-      ...prev,
-      [platform]: value
-    }))
-  }
-
-  const handleSave = async () => {
+  const handleProfileUpdate = async () => {
     setIsLoading(true)
     try {
-      // Simulate API call
+      // Validate required fields
+      if (!profileForm.name.trim()) {
+        toast.error('Name is required')
+        return
+      }
+
+      if (!profileForm.email.trim()) {
+        toast.error('Email is required')
+        return
+      }
+
+      // Here you would typically call an API to update the user profile
+      // For now, we'll just show a success message
       await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Settings saved successfully!')
+      
+      // Update local state
+      if (updateUser) {
+        updateUser({
+          ...user,
+          ...profileForm
+        })
+      }
+      
+      toast.success('Profile updated successfully!')
     } catch (error) {
-      toast.error('Failed to save settings')
+      toast.error('Failed to update profile')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleChangePassword = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
+  const handlePasswordChange = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error('New passwords do not match')
       return
     }
-    
-    if (passwordData.newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters long')
+
+    if (passwordForm.newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long')
+      return
+    }
+
+    if (!passwordForm.currentPassword) {
+      toast.error('Current password is required')
       return
     }
 
     setIsLoading(true)
     try {
-      // Simulate API call for password change
+      // Here you would typically call an API to change the password
       await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Password changed successfully!')
-      setShowChangePassword(false)
-      setPasswordData({
+      
+      setPasswordForm({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       })
+      
+      toast.success('Password changed successfully!')
     } catch (error) {
       toast.error('Failed to change password')
     } finally {
@@ -89,415 +155,511 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') {
-      toast.error('Please type DELETE to confirm account deletion')
-      return
-    }
+  const handleNotificationToggle = (key: string) => {
+    setNotifications(prev => ({
+      ...prev,
+      [key]: !prev[key as keyof typeof prev]
+    }))
+  }
 
-    setIsLoading(true)
-    try {
-      // API call to delete user account and all associated data
-      const response = await fetch('/api/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user?.id
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete account')
+  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file')
+        return
       }
 
-      toast.success('Account deleted successfully')
-      // Sign out and redirect to login
-      window.location.href = '/login'
-    } catch (error) {
-      console.error('Delete account error:', error)
-      toast.error('Failed to delete account. Please try again.')
-    } finally {
-      setIsLoading(false)
-      setShowDeleteConfirm(false)
-      setDeleteConfirmText('')
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB')
+        return
+      }
+
+      // Here you would typically upload the file to your storage service
+      toast.success('Avatar uploaded successfully!')
     }
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+  const exportData = () => {
+    // Create export data
+    const exportData = {
+      profile: profileForm,
+      notifications: notifications,
+      preferences: {
+        theme,
+        language,
+        timezone
+      },
+      exportDate: new Date().toISOString()
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `settings-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    
+    toast.success('Settings exported successfully!')
+  }
+
+  const deleteAccount = () => {
+    if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      toast.error('Account deletion not implemented in demo')
+    }
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex justify-between items-start"
-      >
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600">Manage your account and preferences</p>
-        </div>
-      </motion.div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="text-gray-600">Manage your account settings and preferences</p>
+      </div>
 
-      {/* Profile Information */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Profile Information
-            </CardTitle>
-            <CardDescription>
-              Update your profile picture and basic information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Profile Picture */}
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Avatar className="w-20 h-20">
-                  <AvatarImage src={profileImage || undefined} alt={user?.name} />
-                  <AvatarFallback className="text-lg font-semibold">
-                    {user?.name ? getInitials(user.name) : 'U'}
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+        </TabsList>
+
+        {/* Profile Tab */}
+        <TabsContent value="profile" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Profile Information
+              </CardTitle>
+              <CardDescription>
+                Update your personal information and profile picture
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Avatar Section */}
+              <div className="flex items-center gap-6">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={user?.avatar_url || ''} alt={user?.name} />
+                  <AvatarFallback className="text-lg">
+                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1 rounded-full cursor-pointer hover:bg-blue-700 transition-colors">
-                  <Camera className="w-3 h-3" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
+                <div className="space-y-2">
+                  <Label htmlFor="avatar-upload">Profile Picture</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <label htmlFor="avatar-upload">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Photo
+                      </label>
+                    </Button>
+                    <input
+                      id="avatar-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                    <p className="text-xs text-gray-500">Max 5MB, JPG/PNG</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Profile Form */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name *</Label>
+                  <Input
+                    id="name"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter your full name"
                   />
-                </label>
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">Profile Picture</h3>
-                <p className="text-sm text-gray-600">Upload a new profile picture</p>
-              </div>
-            </div>
+                </div>
 
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium text-gray-700">
-                Full Name
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  id="name"
-                  value={user?.name || ''}
-                  disabled
-                  className="pl-10 bg-gray-50 text-gray-600"
-                  placeholder="Your full name"
-                />
-              </div>
-              <p className="text-xs text-gray-500">Name cannot be changed</p>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={profileForm.username}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="Enter your username"
+                  />
+                </div>
 
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email Address
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  id="email"
-                  value={user?.email || ''}
-                  disabled
-                  className="pl-10 bg-gray-50 text-gray-600"
-                  placeholder="your.email@example.com"
-                />
-              </div>
-              <p className="text-xs text-gray-500">Email cannot be changed</p>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter your email"
+                  />
+                </div>
 
-            {/* Role */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">
-                Account Type
-              </Label>
-              <div className="relative">
-                <Input
-                  value={user?.role ? user.role.replace('_', ' ').toUpperCase() : ''}
-                  disabled
-                  className="bg-gray-50 text-gray-600"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="capitalize">
+                      {user?.role?.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                </div>
 
-      {/* Social Profiles */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              Social Profiles
-            </CardTitle>
-            <CardDescription>
-              Connect your social media accounts
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Instagram */}
-            <div className="space-y-2">
-              <Label htmlFor="instagram" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Instagram className="w-4 h-4 text-pink-600" />
-                Instagram
-              </Label>
-              <Input
-                id="instagram"
-                value={socialProfiles.instagram}
-                onChange={(e) => handleSocialProfileChange('instagram', e.target.value)}
-                placeholder="your.instagram.username"
-                className="pl-10"
-              />
-              <p className="text-xs text-gray-500">Enter your Instagram username</p>
-            </div>
-
-            {/* LinkedIn */}
-            <div className="space-y-2">
-              <Label htmlFor="linkedin" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Linkedin className="w-4 h-4 text-blue-600" />
-                LinkedIn
-              </Label>
-              <Input
-                id="linkedin"
-                value={socialProfiles.linkedin}
-                onChange={(e) => handleSocialProfileChange('linkedin', e.target.value)}
-                placeholder="your-linkedin-profile-url"
-                className="pl-10"
-              />
-              <p className="text-xs text-gray-500">Enter your LinkedIn profile URL</p>
-            </div>
-
-            {/* Save Button */}
-            <div className="pt-4">
-              <Button 
-                onClick={handleSave} 
-                disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
-                {isLoading ? (
+                {user?.role === 'professor' && (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Department</Label>
+                      <Input
+                        id="department"
+                        value={profileForm.department}
+                        onChange={(e) => setProfileForm(prev => ({ ...prev, department: e.target.value }))}
+                        placeholder="e.g., Computer Science"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="specialization">Specialization</Label>
+                      <Input
+                        id="specialization"
+                        value={profileForm.specialization}
+                        onChange={(e) => setProfileForm(prev => ({ ...prev, specialization: e.target.value }))}
+                        placeholder="e.g., Data Structures, Algorithms"
+                      />
+                    </div>
                   </>
                 )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+              </div>
 
-      {/* Additional Settings */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
-            <CardDescription>
-              Manage your account preferences and security
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Change Password Section */}
+              {user?.role === 'professor' && (
+                <div className="space-y-2">
+                  <Label htmlFor="experience">Teaching Experience</Label>
+                  <Textarea
+                    id="experience"
+                    value={profileForm.experience}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, experience: e.target.value }))}
+                    placeholder="Describe your teaching experience and expertise..."
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="bio">Bio</Label>
+                <Textarea
+                  id="bio"
+                  value={profileForm.bio}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, bio: e.target.value }))}
+                  placeholder="Tell us about yourself..."
+                  rows={4}
+                />
+              </div>
+
+              <Button onClick={handleProfileUpdate} disabled={isLoading}>
+                {isLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Changes
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Security Settings
+              </CardTitle>
+              <CardDescription>
+                Update your password and security preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <div className="space-y-4">
-                <Button 
-                  variant="outline" 
-                  className="justify-start"
-                  onClick={() => setShowChangePassword(!showChangePassword)}
-                >
-                  <Lock className="w-4 h-4 mr-2" />
+                <div className="space-y-2">
+                  <Label htmlFor="current-password">Current Password *</Label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      placeholder="Enter your current password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password *</Label>
+                  <Input
+                    id="new-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    placeholder="Enter your new password"
+                  />
+                  <p className="text-xs text-gray-500">Must be at least 8 characters long</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm New Password *</Label>
+                  <Input
+                    id="confirm-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Confirm your new password"
+                  />
+                </div>
+
+                <Button onClick={handlePasswordChange} disabled={isLoading}>
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  ) : (
+                    <Shield className="h-4 w-4 mr-2" />
+                  )}
                   Change Password
                 </Button>
-                
-                {showChangePassword && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="p-4 border rounded-lg bg-gray-50 space-y-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="currentPassword" className="text-sm font-medium text-gray-700">
-                        Current Password
-                      </Label>
-                      <Input
-                        id="currentPassword"
-                        type="password"
-                        value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                        placeholder="Enter your current password"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword" className="text-sm font-medium text-gray-700">
-                        New Password
-                      </Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                        placeholder="Enter your new password"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">
-                        Confirm New Password
-                      </Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        placeholder="Confirm your new password"
-                      />
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={handleChangePassword}
-                        disabled={isLoading}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {isLoading ? 'Changing...' : 'Change Password'}
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => {
-                          setShowChangePassword(false)
-                          setPasswordData({
-                            currentPassword: '',
-                            newPassword: '',
-                            confirmPassword: ''
-                          })
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
               </div>
-              
-              {/* Delete Account Section */}
-              <div className="space-y-4">
-                <Button 
-                  variant="outline" 
-                  className="justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Account
+            </CardContent>
+          </Card>
+
+          {/* Account Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                Account Management
+              </CardTitle>
+              <CardDescription>
+                Manage your account data and settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Export Data</p>
+                  <p className="text-sm text-gray-500">Download your account data</p>
+                </div>
+                <Button variant="outline" onClick={exportData}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
                 </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-red-600">Delete Account</p>
+                  <p className="text-sm text-gray-500">Permanently delete your account</p>
+                </div>
+                <Button variant="destructive" onClick={deleteAccount}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Delete Account Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600">
-              <Trash2 className="w-5 h-5" />
-              Delete Account
-            </DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800 font-medium mb-2">⚠️ Warning</p>
-              <ul className="text-sm text-red-700 space-y-1">
-                <li>• All your courses and enrollments will be deleted</li>
-                <li>• Your profile and settings will be permanently removed</li>
-                <li>• All your data will be erased from the database</li>
-                <li>• This action cannot be reversed</li>
-              </ul>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="deleteConfirm" className="text-sm font-medium text-gray-700">
-                Type &quot;DELETE&quot; to confirm
-              </Label>
-              <Input
-                id="deleteConfirm"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="Type DELETE to confirm"
-                className="border-red-300 focus:border-red-500 focus:ring-red-500"
-              />
-            </div>
-          </div>
-          
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowDeleteConfirm(false)
-                setDeleteConfirmText('')
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDeleteAccount}
-              disabled={isLoading || deleteConfirmText !== 'DELETE'}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Account
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notification Preferences
+              </CardTitle>
+              <CardDescription>
+                Choose how you want to receive notifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Email Notifications</Label>
+                    <p className="text-sm text-gray-500">Receive notifications via email</p>
+                  </div>
+                  <Switch
+                    checked={notifications.emailNotifications}
+                    onCheckedChange={() => handleNotificationToggle('emailNotifications')}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Push Notifications</Label>
+                    <p className="text-sm text-gray-500">Receive push notifications in the app</p>
+                  </div>
+                  <Switch
+                    checked={notifications.pushNotifications}
+                    onCheckedChange={() => handleNotificationToggle('pushNotifications')}
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Course Updates</Label>
+                    <p className="text-sm text-gray-500">Get notified about course announcements</p>
+                  </div>
+                  <Switch
+                    checked={notifications.courseUpdates}
+                    onCheckedChange={() => handleNotificationToggle('courseUpdates')}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Live Session Reminders</Label>
+                    <p className="text-sm text-gray-500">Reminders for upcoming live sessions</p>
+                  </div>
+                  <Switch
+                    checked={notifications.liveSessionReminders}
+                    onCheckedChange={() => handleNotificationToggle('liveSessionReminders')}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Assignment Deadlines</Label>
+                    <p className="text-sm text-gray-500">Notifications for assignment deadlines</p>
+                  </div>
+                  <Switch
+                    checked={notifications.assignmentDeadlines}
+                    onCheckedChange={() => handleNotificationToggle('assignmentDeadlines')}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Doubt Responses</Label>
+                    <p className="text-sm text-gray-500">Get notified when your doubts are answered</p>
+                  </div>
+                  <Switch
+                    checked={notifications.doubtResponses}
+                    onCheckedChange={() => handleNotificationToggle('doubtResponses')}
+                  />
+                </div>
+
+                {user?.role === 'professor' && (
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Enrollment Requests</Label>
+                      <p className="text-sm text-gray-500">Get notified about new enrollment requests</p>
+                    </div>
+                    <Switch
+                      checked={notifications.enrollmentRequests}
+                      onCheckedChange={() => handleNotificationToggle('enrollmentRequests')}
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>System Updates</Label>
+                    <p className="text-sm text-gray-500">Receive system and maintenance notifications</p>
+                  </div>
+                  <Switch
+                    checked={notifications.systemUpdates}
+                    onCheckedChange={() => handleNotificationToggle('systemUpdates')}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Preferences Tab */}
+        <TabsContent value="preferences" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5" />
+                App Preferences
+              </CardTitle>
+              <CardDescription>
+                Customize your app experience
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="theme">Theme</Label>
+                  <Select value={theme} onValueChange={setTheme}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="language">Language</Label>
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="fr">French</SelectItem>
+                      <SelectItem value="de">German</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <Select value={timezone} onValueChange={setTimezone}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                      <SelectItem value="EST">Eastern Time</SelectItem>
+                      <SelectItem value="PST">Pacific Time</SelectItem>
+                      <SelectItem value="GMT">GMT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 } 

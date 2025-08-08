@@ -1,132 +1,97 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { toast } from 'sonner'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { BookOpen, ArrowLeft, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react'
+import MainLayout from '@/components/layout/MainLayout'
 import useAuthStore from '@/store/authStore'
 import useCourseStore from '@/store/courseStore'
-import { toast } from 'sonner'
-import WeekCalendar from '@/components/WeekCalendar'
-
-interface TimeSlot {
-  day: string
-  startTime: string
-  endTime: string
-}
+import { validateCourseTitle, validateCourseDescription, sanitizeInput } from '@/lib/validation'
+import { LoadingButton } from '@/components/ui/LoadingStates'
+import { BookOpen, Plus, Loader2, ArrowLeft } from 'lucide-react'
 
 interface CourseFormData {
   title: string
-  code: string
   description: string
   semester: string
-  max_students: number
   schedule: string
   classroom: string
+  max_students: number
 }
 
 export default function CreateCoursePage() {
   const router = useRouter()
   const { user } = useAuthStore()
-  const { createCourse, checkCourseCodeExists } = useCourseStore()
-  
+  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState<CourseFormData>({
     title: '',
-    code: '',
     description: '',
     semester: '',
-    max_students: 30,
     schedule: '',
-    classroom: ''
+    classroom: '',
+    max_students: 50
   })
-  
-  const [isLoading, setIsLoading] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
+
   const [errors, setErrors] = useState<Partial<CourseFormData>>({})
-  const [isCheckingCode, setIsCheckingCode] = useState(false)
-  const [codeExists, setCodeExists] = useState(false)
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
 
   const semesters = [
+    'Fall 2024',
+    'Spring 2024',
+    'Summer 2024',
+    'Fall 2025',
     'Spring 2025',
-    'Autumn 2026'
+    'Summer 2025'
   ]
 
-  const validateForm = (): boolean => {
+  const generateCourseCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    let result = ''
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return result
+  }
+
+  const validateForm = () => {
     const newErrors: Partial<CourseFormData> = {}
-    
-    if (!formData.title.trim()) {
-      newErrors.title = 'Course title is required'
+
+    // Validate and sanitize title
+    const titleValidation = validateCourseTitle(formData.title)
+    if (!titleValidation.isValid) {
+      newErrors.title = titleValidation.error
     }
-    
-    if (!formData.code.trim()) {
-      newErrors.code = 'Course code is required'
-    } else if (formData.code.length < 3 || formData.code.length > 10) {
-      newErrors.code = 'Course code must be between 3 and 10 characters'
-    } else if (!/^[A-Z0-9]+$/.test(formData.code)) {
-      newErrors.code = 'Course code must contain only uppercase letters and numbers'
-    } else if (codeExists) {
-      newErrors.code = 'This course code is already taken'
+
+    // Validate and sanitize description
+    const descriptionValidation = validateCourseDescription(formData.description)
+    if (!descriptionValidation.isValid) {
+      newErrors.description = descriptionValidation.error
     }
-    
-    if (!formData.description.trim()) {
-      newErrors.description = 'Course description is required'
-    }
-    
+
     if (!formData.semester) {
       newErrors.semester = 'Semester is required'
     }
-    
-    if (formData.max_students < 1 || formData.max_students > 200) {
-      newErrors.max_students = 'Max students must be between 1 and 200'
+
+    if (!formData.schedule.trim()) {
+      newErrors.schedule = 'Schedule is required'
     }
-    
-    if (timeSlots.length === 0) {
-      newErrors.schedule = 'At least one time slot is required'
-    }
-    
+
     if (!formData.classroom.trim()) {
       newErrors.classroom = 'Classroom is required'
     }
-    
+
+    if (formData.max_students < 1 || formData.max_students > 200) {
+      newErrors.max_students = 'Max students must be between 1 and 200'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
-
-
-
-  const handleCodeChange = async (value: string) => {
-    const upperCode = value.toUpperCase()
-    setFormData(prev => ({ ...prev, code: upperCode }))
-    setCodeExists(false)
-    
-    // Clear error when user starts typing
-    if (errors.code) {
-      setErrors(prev => ({ ...prev, code: undefined }))
-    }
-    
-    // Check if code exists (only if code is valid format)
-    if (upperCode.length >= 3 && /^[A-Z0-9]+$/.test(upperCode)) {
-      setIsCheckingCode(true)
-      try {
-        const exists = await checkCourseCodeExists(upperCode)
-        setCodeExists(exists)
-        if (exists) {
-          setErrors(prev => ({ ...prev, code: 'This course code is already taken' }))
-        }
-      } catch (error) {
-        console.error('Error checking course code:', error)
-      } finally {
-        setIsCheckingCode(false)
-      }
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,108 +101,93 @@ export default function CreateCoursePage() {
       toast.error('Please fix the errors in the form')
       return
     }
-    
-    if (!formData.code) {
-      toast.error('Please enter a course code')
-      return
-    }
-    
-    if (!user) {
-      toast.error('User not authenticated')
-      return
-    }
-    
-    setIsLoading(true)
-    
-    try {
-      // Format schedule from time slots
-      const scheduleText = timeSlots.map(slot => {
-        const dayNames = {
-          monday: 'Mon',
-          tuesday: 'Tue', 
-          wednesday: 'Wed',
-          thursday: 'Thu',
-          friday: 'Fri',
-          saturday: 'Sat',
-          sunday: 'Sun'
-        }
-        const day = dayNames[slot.day as keyof typeof dayNames] || slot.day
-        const startTime = formatTimeForDisplay(slot.startTime)
-        const endTime = formatTimeForDisplay(slot.endTime)
-        return `${day} ${startTime} - ${endTime}`
-      }).join(', ')
 
-      const result = await createCourse({
-        ...formData,
-        schedule: scheduleText,
-        professor_id: user.id,
-        is_live: false
-      })
+    setIsLoading(true)
+
+    try {
+      const courseCode = generateCourseCode()
+      
+      // Check if course code already exists
+      const codeExists = await useCourseStore.getState().checkCourseCodeExists(courseCode)
+      if (codeExists) {
+        toast.error('Course code already exists. Please try again.')
+        return
+      }
+
+      // Create course using real Supabase operation with sanitized data
+      const courseData = {
+        title: sanitizeInput(formData.title),
+        code: courseCode,
+        description: sanitizeInput(formData.description),
+        professor_id: user?.id,
+        semester: formData.semester,
+        max_students: formData.max_students,
+        schedule: sanitizeInput(formData.schedule),
+        classroom: sanitizeInput(formData.classroom),
+        is_active: true
+      }
+
+      const result = await useCourseStore.getState().createCourse(courseData)
       
       if (result.success) {
-        toast.success('Course created successfully!')
+        toast.success(`Course created successfully! Course code: ${courseCode}`)
+        // Redirect to courses list - the new course will be loaded there
         router.push('/dashboard/courses')
       } else {
         toast.error(result.error || 'Failed to create course')
       }
     } catch (error) {
-      toast.error('An unexpected error occurred')
-      console.error('Create course error:', error)
+      toast.error('Failed to create course. Please try again.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const formatTimeForDisplay = (time: string) => {
-    const [hours, minutes] = time.split(':')
-    const hour = parseInt(hours)
-    const ampm = hour >= 12 ? 'PM' : 'AM'
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
-    return `${displayHour}:${minutes} ${ampm}`
-  }
-
   const handleInputChange = (field: keyof CourseFormData, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }))
     }
   }
 
-  const handleTimeSlotsChange = (slots: TimeSlot[]) => {
-    setTimeSlots(slots)
-    // Clear schedule error when time slots are added
-    if (errors.schedule) {
-      setErrors(prev => ({ ...prev, schedule: undefined }))
-    }
-  }
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center gap-4"
-      >
-                 <Button
-           variant="ghost"
-           size="sm"
-           onClick={() => router.back()}
-           className="p-2 active:scale-95 transition-all duration-150"
-         >
-           <ArrowLeft className="w-4 h-4" />
-         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Create New Course</h1>
-          <p className="text-gray-600">Set up a new course for your students</p>
-        </div>
-      </motion.div>
+    <MainLayout 
+      title="Create Course" 
+      description="Create a new course for your students"
+    >
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.back()}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Course</h1>
+              <p className="text-gray-600">
+                Set up a new course for your students. A unique course code will be generated automatically.
+              </p>
+            </div>
+          </div>
+        </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Course Creation Form */}
-        <div className="lg:col-span-2">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -245,88 +195,53 @@ export default function CreateCoursePage() {
                 Course Information
               </CardTitle>
               <CardDescription>
-                Fill in the details for your new course
+                Fill in the details below to create your new course
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Course Code */}
-                <div className="space-y-2">
-                  <Label htmlFor="courseCode">Course Code *</Label>
-                  <div className="relative">
-                                                                                   <Input
-                        id="courseCode"
-                        value={formData.code}
-                        onChange={(e) => handleCodeChange(e.target.value)}
-                        placeholder="e.g., EP40201, CS301"
-                        className={`font-mono !bg-white ${errors.code ? 'border-red-500' : ''}`}
-                        maxLength={10}
-                      />
-                    {isCheckingCode && (
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      </div>
-                    )}
-                  </div>
-                  {errors.code && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.code}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    Enter a unique code (3-10 characters, letters and numbers only) that students will use to enroll
-                  </p>
-                </div>
-
                 {/* Course Title */}
                 <div className="space-y-2">
                   <Label htmlFor="title">Course Title *</Label>
-                                                                           <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => handleInputChange('title', e.target.value)}
-                      placeholder="e.g., Advanced Data Structures"
-                      className={`!bg-white ${errors.title ? 'border-red-500' : ''}`}
-                    />
+                  <Input
+                    id="title"
+                    placeholder="e.g., Advanced Data Structures"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    className={errors.title ? 'border-red-500' : ''}
+                  />
                   {errors.title && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.title}
-                    </p>
+                    <p className="text-sm text-red-600">{errors.title}</p>
                   )}
                 </div>
 
                 {/* Course Description */}
                 <div className="space-y-2">
                   <Label htmlFor="description">Course Description *</Label>
-                                                                                                                                                     <Textarea
-                       id="description"
-                       value={formData.description}
-                       onChange={(e) => handleInputChange('description', e.target.value)}
-                       placeholder="Describe what students will learn in this course..."
-                       rows={4}
-                       className={`!bg-white ${errors.description ? 'border-red-500' : ''}`}
-                     />
+                  <Textarea
+                    id="description"
+                    placeholder="Describe the course content, objectives, and what students will learn..."
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    rows={4}
+                    className={errors.description ? 'border-red-500' : ''}
+                  />
                   {errors.description && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.description}
-                    </p>
+                    <p className="text-sm text-red-600">{errors.description}</p>
                   )}
                 </div>
 
-                {/* Semester and Max Students */}
+                {/* Semester and Schedule */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="semester">Semester *</Label>
-                                         <Select
-                       value={formData.semester}
-                       onValueChange={(value) => handleInputChange('semester', value)}
-                     >
-                                                                                                                                                                                               <SelectTrigger className={`!bg-white ${errors.semester ? 'border-red-500' : ''}`}>
-                         <SelectValue placeholder="Select semester" />
-                       </SelectTrigger>
+                    <Select
+                      value={formData.semester}
+                      onValueChange={(value) => handleInputChange('semester', value)}
+                    >
+                      <SelectTrigger className={errors.semester ? 'border-red-500' : ''}>
+                        <SelectValue placeholder="Select semester" />
+                      </SelectTrigger>
                       <SelectContent>
                         {semesters.map((semester) => (
                           <SelectItem key={semester} value={semester}>
@@ -336,177 +251,118 @@ export default function CreateCoursePage() {
                       </SelectContent>
                     </Select>
                     {errors.semester && (
-                      <p className="text-xs text-red-500 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        {errors.semester}
-                      </p>
+                      <p className="text-sm text-red-600">{errors.semester}</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="maxStudents">Maximum Students *</Label>
-                                                                                   <Input
-                        id="maxStudents"
-                        type="number"
-                        min="1"
-                        max="200"
-                        value={formData.max_students}
-                        onChange={(e) => handleInputChange('max_students', parseInt(e.target.value))}
-                        className={`!bg-white ${errors.max_students ? 'border-red-500' : ''}`}
-                      />
-                    {errors.max_students && (
-                      <p className="text-xs text-red-500 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        {errors.max_students}
-                      </p>
+                    <Label htmlFor="schedule">Schedule *</Label>
+                    <Input
+                      id="schedule"
+                      placeholder="e.g., Mon, Wed, Fri 10:00 AM - 11:30 AM"
+                      value={formData.schedule}
+                      onChange={(e) => handleInputChange('schedule', e.target.value)}
+                      className={errors.schedule ? 'border-red-500' : ''}
+                    />
+                    {errors.schedule && (
+                      <p className="text-sm text-red-600">{errors.schedule}</p>
                     )}
                   </div>
                 </div>
 
-                {/* Schedule */}
-                <div className="space-y-2">
-                  <Label>Schedule *</Label>
-                                     <WeekCalendar
-                     selectedSlots={timeSlots}
-                     onSlotsChange={handleTimeSlotsChange}
-                   />
-                  {errors.schedule && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.schedule}
-                    </p>
-                  )}
-                </div>
-
-                {/* Classroom */}
-                <div className="space-y-2">
-                  <Label htmlFor="classroom">Classroom *</Label>
-                                                                           <Input
+                {/* Classroom and Max Students */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="classroom">Classroom *</Label>
+                    <Input
                       id="classroom"
+                      placeholder="e.g., Computer Science Building, Room 205"
                       value={formData.classroom}
                       onChange={(e) => handleInputChange('classroom', e.target.value)}
-                      placeholder="e.g., Room 301, Building A"
-                      className={`!bg-white ${errors.classroom ? 'border-red-500' : ''}`}
+                      className={errors.classroom ? 'border-red-500' : ''}
                     />
-                  {errors.classroom && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {errors.classroom}
-                    </p>
-                  )}
+                    {errors.classroom && (
+                      <p className="text-sm text-red-600">{errors.classroom}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="max_students">Maximum Students</Label>
+                    <Input
+                      id="max_students"
+                      type="number"
+                      min="1"
+                      max="200"
+                      placeholder="50"
+                      value={formData.max_students}
+                      onChange={(e) => handleInputChange('max_students', parseInt(e.target.value) || 0)}
+                      className={errors.max_students ? 'border-red-500' : ''}
+                    />
+                    {errors.max_students && (
+                      <p className="text-sm text-red-600">{errors.max_students}</p>
+                    )}
+                    <p className="text-xs text-gray-500">Default: 50 students</p>
+                  </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-4 pt-4">
-                                     <Button
-                     type="button"
-                     variant="outline"
-                     onClick={() => setShowPreview(!showPreview)}
-                     disabled={!formData.title || !formData.description}
-                     className="active:scale-95 transition-all duration-150"
-                   >
-                     {showPreview ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                     {showPreview ? 'Hide Preview' : 'Show Preview'}
-                   </Button>
-                   <Button
-                     type="submit"
-                     disabled={isLoading || !formData.code}
-                     className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all duration-150"
-                   >
-                     {isLoading ? 'Creating Course...' : 'Create Course'}
-                   </Button>
+                {/* Submit Button */}
+                <div className="flex justify-end pt-6">
+                  <LoadingButton
+                    type="submit"
+                    loading={isLoading}
+                    className="min-w-[200px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Course
+                  </LoadingButton>
                 </div>
               </form>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
 
-        {/* Course Preview */}
-        {showPreview && (
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  Course Preview
-                </CardTitle>
-                <CardDescription>
-                  How your course will appear to students
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <BookOpen className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {formData.code || 'XXXX'}
-                    </Badge>
+        {/* Course Code Information */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Card className="border-blue-200 bg-blue-50">
+            <CardHeader>
+              <CardTitle className="text-blue-800">Course Code Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-100 rounded">
+                    <BookOpen className="w-4 h-4 text-blue-600" />
                   </div>
-                  
                   <div>
-                    <h3 className="font-medium text-gray-900 mb-1">
-                      {formData.title || 'Course Title'}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {user?.full_name || 'Professor Name'}
+                    <h3 className="font-medium text-blue-900">Automatic Code Generation</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      A unique 8-character course code will be generated automatically when you create the course. 
+                      Students will use this code to enroll in your course.
                     </p>
-                    <p className="text-xs text-gray-500 mb-3">
-                      {formData.description || 'Course description will appear here...'}
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2 text-xs text-gray-600">
-                    <div className="flex justify-between">
-                      <span>Semester:</span>
-                      <span>{formData.semester || 'Not set'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Schedule:</span>
-                      <span>
-                        {timeSlots.length > 0 
-                          ? timeSlots.map(slot => {
-                              const dayNames = {
-                                monday: 'Mon',
-                                tuesday: 'Tue', 
-                                wednesday: 'Wed',
-                                thursday: 'Thu',
-                                friday: 'Fri',
-                                saturday: 'Sat',
-                                sunday: 'Sun'
-                              }
-                              const day = dayNames[slot.day as keyof typeof dayNames] || slot.day
-                              const startTime = formatTimeForDisplay(slot.startTime)
-                              const endTime = formatTimeForDisplay(slot.endTime)
-                              return `${day} ${startTime}-${endTime}`
-                            }).join(', ')
-                          : 'Not set'
-                        }
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Classroom:</span>
-                      <span>{formData.classroom || 'Not set'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Max Students:</span>
-                      <span>{formData.max_students || 0}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="pt-2 border-t">
-                    <div className="flex items-center gap-2 text-xs text-green-600">
-                      <CheckCircle className="w-3 h-3" />
-                      <span>Course ready to be created</span>
-                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-100 rounded">
+                    <BookOpen className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-blue-900">Student Enrollment Process</h3>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Students will enter the course code on their dashboard to request enrollment. 
+                      You'll receive a notification and can approve or reject their request.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
-    </div>
+    </MainLayout>
   )
 } 
