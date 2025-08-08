@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.toLowerCase(),
       password: password,
-      email_confirm: false, // Don't auto-confirm email - let user verify
+      email_confirm: true, // Auto-confirm email for admin-created users
       user_metadata: {
         name: name,
         username: username.toLowerCase(),
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       username: username.toLowerCase(),
       email: email.toLowerCase(),
       role: role,
-      status: 'pending', // Set initial status as pending
+      status: 'active', // Set initial status as active
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -150,11 +150,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Create user API: Successfully created user with pending status')
+    console.log('Create user API: Successfully created user with active status')
     return NextResponse.json({
       success: true,
       user: createdUser,
-      message: 'User created successfully. They will receive an email verification link.'
+      message: 'User created successfully. They can now access the platform.'
     })
 
   } catch (error) {

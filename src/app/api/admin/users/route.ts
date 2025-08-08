@@ -42,42 +42,80 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { userId, updates } = await request.json()
+    console.log('Admin API: PUT request received')
     
-    if (!userId || !updates) {
+    const body = await request.json()
+    console.log('Admin API: Request body:', body)
+    
+    const { userId, userIds, updates } = body
+    
+    // Handle both single user and bulk user updates
+    if (!updates) {
+      console.log('Admin API: No updates provided')
       return NextResponse.json(
-        { error: 'User ID and updates are required' },
+        { error: 'Updates are required' },
         { status: 400 }
       )
     }
 
-    console.log('Admin API: Updating user:', userId, updates)
-    
-    // Use service role key to bypass RLS
-    const { error } = await supabaseAdmin
-      .from('users')
-      .update(updates)
-      .eq('id', userId)
+    if (userId) {
+      // Single user update
+      console.log('Admin API: Updating single user:', userId, updates)
+      
+      const { error } = await supabaseAdmin
+        .from('users')
+        .update(updates)
+        .eq('id', userId)
 
-    if (error) {
-      console.error('Admin API: Error updating user:', error)
+      if (error) {
+        console.error('Admin API: Error updating user:', error)
+        return NextResponse.json(
+          { error: `Failed to update user: ${error.message}` },
+          { status: 500 }
+        )
+      }
+
+      console.log('Admin API: Successfully updated user')
+      
+      return NextResponse.json({
+        success: true,
+        message: 'User updated successfully'
+      })
+    } else if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+      // Bulk user update
+      console.log('Admin API: Updating multiple users:', userIds, updates)
+      
+      const { error } = await supabaseAdmin
+        .from('users')
+        .update(updates)
+        .in('id', userIds)
+
+      if (error) {
+        console.error('Admin API: Error updating users:', error)
+        return NextResponse.json(
+          { error: `Failed to update users: ${error.message}` },
+          { status: 500 }
+        )
+      }
+
+      console.log(`Admin API: Successfully updated ${userIds.length} users`)
+      
+      return NextResponse.json({
+        success: true,
+        message: `Successfully updated ${userIds.length} users`
+      })
+    } else {
+      console.log('Admin API: Invalid request - no userId or userIds provided')
       return NextResponse.json(
-        { error: `Failed to update user: ${error.message}` },
-        { status: 500 }
+        { error: 'Either userId or userIds array is required' },
+        { status: 400 }
       )
     }
-
-    console.log('Admin API: Successfully updated user')
-    
-    return NextResponse.json({
-      success: true,
-      message: 'User updated successfully'
-    })
 
   } catch (error) {
     console.error('Admin API: Unexpected error in PUT:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Internal server error: ${error.message}` },
       { status: 500 }
     )
   }

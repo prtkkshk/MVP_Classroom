@@ -48,7 +48,7 @@ interface User {
   avatar_url: string | null
   created_at: string
   updated_at: string
-  status?: 'active' | 'inactive' | 'pending'
+  status?: 'active' | 'inactive'
   last_login?: string
   courses_count?: number
   enrolled_courses?: number
@@ -178,7 +178,7 @@ export default function UserManagementPage() {
       // Enhance users with additional data (simplified for now)
       const enhancedUsers = usersData?.map(user => ({
         ...user,
-        status: 'active' as const, // Default status since it's not in the schema
+        status: user.status || 'active', // Use actual status from database, default to 'active' if not set
         courses_count: 0, // Simplified for now
         enrolled_courses: 0 // Simplified for now
       })) || []
@@ -196,7 +196,6 @@ export default function UserManagementPage() {
       
       // Success feedback
       toast.dismiss(loadingToast)
-      toast.success(`Loaded ${enhancedUsers.length} users`)
     } catch (error) {
       console.error('Error in fetchUsers:', error)
       toast.error(`Failed to fetch users: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -241,7 +240,7 @@ export default function UserManagementPage() {
       filtered = filtered.filter(user => user.role === roleFilter)
     }
 
-    // Status filter (since we don't have status in DB, this filters by role for now)
+    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(user => user.status === statusFilter)
     }
@@ -312,22 +311,36 @@ export default function UserManagementPage() {
       } else {
         // Activate or deactivate users
         const status = action === 'activate' ? 'active' : 'inactive'
-        const response = await fetch('/api/admin/users', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            userIds: selectedUsers,
-            updates: { status, updated_at: new Date().toISOString() }
-          })
-        })
-
-        const result = await response.json()
         
-        if (!response.ok) {
-          console.error(`Error ${action}ing users:`, result.error)
-          toast.error(result.error || `Failed to ${action} users`)
+        console.log(`Attempting to ${action} users:`, selectedUsers, status)
+        
+        try {
+          const response = await fetch('/api/admin/users', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              userIds: selectedUsers,
+              updates: { status, updated_at: new Date().toISOString() }
+            })
+          })
+
+          console.log('Response status:', response.status)
+          
+          if (!response.ok) {
+            const result = await response.json()
+            console.error(`Error ${action}ing users:`, result.error)
+            toast.error(result.error || `Failed to ${action} users`)
+            return
+          }
+
+          const result = await response.json()
+          console.log('Success response:', result)
+          
+        } catch (fetchError) {
+          console.error('Fetch error:', fetchError)
+          toast.error(`Network error: ${fetchError.message}`)
           return
         }
       }
@@ -496,6 +509,35 @@ export default function UserManagementPage() {
     }
   }
 
+  const handleActivateUser = async (userId: string) => {
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userIds: [userId],
+          updates: { status: 'active', updated_at: new Date().toISOString() }
+        })
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        console.error('Error activating user:', result.error)
+        toast.error(result.error || 'Failed to activate user')
+        return
+      }
+
+      toast.success('User activated successfully')
+      fetchUsers() // Refresh the list
+    } catch (error) {
+      console.error('Error in handleActivateUser:', error)
+      toast.error('Failed to activate user')
+    }
+  }
+
   const handleAddUser = async () => {
     // Prevent submission if form is invalid
     if (
@@ -587,7 +629,7 @@ export default function UserManagementPage() {
       // Success feedback
       toast.dismiss(loadingToast)
       toast.success(`${editUserData.role} account created successfully!`, {
-        description: `${newUser.name} will receive an email verification link. Account will be activated after email verification.`
+        description: `${newUser.name} can now access the platform with their email and password.`
       })
       
       // Reset form and close dialog
@@ -799,7 +841,6 @@ export default function UserManagementPage() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -990,19 +1031,29 @@ export default function UserManagementPage() {
                                     <Mail className="w-4 h-4 mr-2" />
                                     Send Message
                                   </Button>
-                                  {user.status === 'inactive' ? (
-                                    <Button 
-                                      variant="outline" 
-                                      className="w-full justify-start text-red-600"
-                                      onClick={() => setShowDeleteConfirm(user.id)}
-                                    >
-                                      <Trash2 className="w-4 h-4 mr-2" />
-                                      Remove User
-                                    </Button>
+                                                                    {user.status === 'inactive' ? (
+                                    <>
+                                      <Button 
+                                        variant="outline" 
+                                        className="w-full justify-start text-blue-600"
+                                        onClick={() => handleActivateUser(user.id)}
+                                      >
+                                        <CheckCircle className="w-4 h-4 mr-2" />
+                                        Activate User
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        className="w-full justify-start text-red-600"
+                                        onClick={() => setShowDeleteConfirm(user.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Remove User
+                                      </Button>
+                                    </>
                                   ) : (
                                     <Button 
                                       variant="outline" 
-                                      className="w-full justify-start text-orange-600"
+                                      className="w-full justify-start text-red-600"
                                       onClick={() => setShowDeleteConfirm(user.id)}
                                     >
                                       <AlertCircle className="w-4 h-4 mr-2" />
@@ -1467,12 +1518,12 @@ export default function UserManagementPage() {
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={handleDeleteUser}
-                disabled={isDeleting}
-                variant={users.find(u => u.id === showDeleteConfirm)?.status === 'inactive' ? 'destructive' : 'default'}
-                className={`flex-1 ${users.find(u => u.id === showDeleteConfirm)?.status === 'inactive' ? '' : 'bg-orange-600 hover:bg-orange-700'}`}
-              >
+                              <Button 
+                  onClick={handleDeleteUser}
+                  disabled={isDeleting}
+                  variant={users.find(u => u.id === showDeleteConfirm)?.status === 'inactive' ? 'destructive' : 'default'}
+                  className={`flex-1 ${users.find(u => u.id === showDeleteConfirm)?.status === 'inactive' ? '' : 'bg-red-600 hover:bg-red-700'}`}
+                >
                 {isDeleting ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : users.find(u => u.id === showDeleteConfirm)?.status === 'inactive' ? (
