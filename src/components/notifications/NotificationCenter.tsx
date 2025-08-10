@@ -250,22 +250,28 @@ export default function NotificationCenter() {
   return (
     <div className="relative" ref={notificationRef}>
       {/* Notification Bell */}
-      <Button
-        variant="ghost"
-        size="sm"
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2"
+        className="relative p-2 rounded-md hover:bg-gray-100 transition-colors"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <Badge 
-            variant="destructive" 
-            className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1"
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </Badge>
+            <Badge 
+              variant="destructive" 
+              className="h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Badge>
+          </motion.div>
         )}
-      </Button>
+      </motion.button>
 
       {/* Notification Center */}
       <AnimatePresence>
@@ -281,23 +287,23 @@ export default function NotificationCenter() {
                 <h3 className="font-semibold text-gray-900">Notifications</h3>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={handleMarkAllAsRead}
-                      className="text-xs"
+                      className="text-xs px-3 py-1 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                     >
                       Mark all read
-                    </Button>
+                    </motion.button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setIsOpen(false)}
-                    className="p-1"
+                    className="p-1 rounded-md hover:bg-gray-100 transition-colors"
                   >
                     <X className="w-4 h-4" />
-                  </Button>
+                  </motion.button>
                 </div>
               </div>
 
@@ -308,8 +314,10 @@ export default function NotificationCenter() {
                   { key: 'unread', label: 'Unread', count: unreadCount },
                   { key: 'important', label: 'Important', count: notifications.filter(n => n.priority === 'high' || n.priority === 'urgent').length }
                 ].map((tab) => (
-                  <button
+                  <motion.button
                     key={tab.key}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setActiveTab(tab.key as any)}
                     className={`flex-1 text-xs px-3 py-1 rounded-md transition-colors ${
                       activeTab === tab.key
@@ -318,7 +326,7 @@ export default function NotificationCenter() {
                     }`}
                   >
                     {tab.label} ({tab.count})
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -376,17 +384,17 @@ export default function NotificationCenter() {
                                         {notification.priority}
                                       </Badge>
                                     )}
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.9 }}
                                       onClick={(e) => {
                                         e.stopPropagation()
                                         handleDeleteNotification(notification.id)
                                       }}
-                                      className="opacity-0 group-hover:opacity-100 p-1 h-6 w-6"
+                                      className="opacity-0 group-hover:opacity-100 p-1 h-6 w-6 rounded-md hover:bg-red-100 text-red-600 transition-all"
                                     >
                                       <Trash2 className="w-3 h-3" />
-                                    </Button>
+                                    </motion.button>
                                   </div>
                                 </div>
                                 
@@ -425,15 +433,15 @@ export default function NotificationCenter() {
               <div className="p-3 border-t bg-gray-50">
                 <div className="flex items-center justify-between text-xs text-gray-600">
                   <span>{filteredNotifications.length} notification{filteredNotifications.length !== 1 ? 's' : ''}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => {/* Navigate to notification settings */}}
-                    className="text-xs p-1 h-6"
+                    className="text-xs p-1 h-6 rounded-md hover:bg-gray-200 transition-colors"
                   >
                     <Settings className="w-3 h-3 mr-1" />
                     Settings
-                  </Button>
+                  </motion.button>
                 </div>
               </div>
             )}

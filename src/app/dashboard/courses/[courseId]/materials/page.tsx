@@ -64,39 +64,8 @@ export default function CourseMaterialsPage() {
     setIsLoading(true)
     try {
       await fetchCourseMaterials(courseId)
-      // Mock data for now - replace with actual data from store
-      setMaterials([
-        {
-          id: '1',
-          name: 'Course Syllabus.pdf',
-          type: 'application/pdf',
-          file_url: '/files/syllabus.pdf',
-          uploaded_by: 'Dr. Sarah Johnson',
-          created_at: '2024-01-15T10:00:00Z',
-          folder: 'Syllabus',
-          size: 1024000
-        },
-        {
-          id: '2',
-          name: 'Lecture 1 - Introduction.pptx',
-          type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-          file_url: '/files/lecture1.pptx',
-          uploaded_by: 'Dr. Sarah Johnson',
-          created_at: '2024-01-16T14:30:00Z',
-          folder: 'Lectures',
-          size: 2048000
-        },
-        {
-          id: '3',
-          name: 'Assignment 1.pdf',
-          type: 'application/pdf',
-          file_url: '/files/assignment1.pdf',
-          uploaded_by: 'Dr. Sarah Johnson',
-          created_at: '2024-01-17T09:15:00Z',
-          folder: 'Assignments',
-          size: 512000
-        }
-      ])
+      // Materials will be loaded from the store
+      setMaterials([])
     } catch (error) {
       toast.error('Failed to load materials')
       console.error('Load materials error:', error)

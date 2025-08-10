@@ -13,15 +13,13 @@ import {
   Menu,
   X,
   ChevronRight,
-  Database,
   BarChart3,
-  Activity,
   Shield,
-  FileText,
   TrendingUp,
   Bot,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  Mail
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -31,26 +29,23 @@ const sidebarItems = {
   student: [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: BookOpen, label: 'My Courses', href: '/dashboard/courses' },
-    { icon: Bot, label: 'AI Companion', href: '/dashboard/ai-companion' },
     { icon: Calendar, label: 'Calendar', href: '/dashboard/calendar' },
-    { icon: MessageSquare, label: 'Enroll', href: '/dashboard/courses/enroll' },
+    { icon: MessageSquare, label: 'Messages', href: '/dashboard/messages' },
     { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ],
   professor: [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: BookOpen, label: 'My Courses', href: '/dashboard/courses' },
     { icon: BarChart3, label: 'Analytics', href: '/dashboard/analytics' },
+    { icon: MessageSquare, label: 'Messages', href: '/dashboard/messages' },
     { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
   ],
   super_admin: [
     { icon: Home, label: 'Dashboard', href: '/admin' },
     { icon: Users, label: 'User Management', href: '/admin/users' },
     { icon: BookOpen, label: 'Course Oversight', href: '/admin/courses' },
-    { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
-    { icon: Database, label: 'Database', href: '/admin/database' },
-    { icon: Activity, label: 'System Monitoring', href: '/admin/monitoring' },
+    { icon: MessageSquare, label: 'Messages', href: '/admin/messages' },
     { icon: Settings, label: 'Settings', href: '/admin/settings' },
-    { icon: FileText, label: 'Reports', href: '/admin/reports' },
   ]
 }
 
@@ -61,6 +56,7 @@ interface SidebarProps {
 export default function Sidebar({ onCollapsedChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut } = useAuthStore()
@@ -75,8 +71,18 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
   const items = sidebarItems[user.role] || sidebarItems.student
 
   const handleLogout = async () => {
-    await signOut()
-    router.push('/login')
+    console.log('Sidebar logout button clicked')
+    if (isLoggingOut) return // Prevent multiple clicks
+    
+    setIsLoggingOut(true)
+    try {
+      await signOut()
+      console.log('Sign out completed, redirecting to login')
+      // The signOut function now handles the redirect
+    } catch (error) {
+      console.error('Error during logout:', error)
+      setIsLoggingOut(false)
+    }
   }
 
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
@@ -213,15 +219,23 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
           )}
         </AnimatePresence>
         
-        <Button
-          variant="ghost"
+        <motion.button
+          whileHover={{ x: 2 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleLogout}
+          disabled={isLoggingOut}
           className={cn(
-            "w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50",
-            isCollapsed && !isMobile && "justify-center px-0"
+            "w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition-colors text-red-600 hover:text-red-700 hover:bg-red-50",
+            isCollapsed && !isMobile && "justify-center px-0",
+            isLoggingOut && "opacity-50 cursor-not-allowed"
           )}
+          style={{ cursor: isLoggingOut ? 'not-allowed' : 'pointer' }}
         >
-          <LogOut className="h-5 w-5 flex-shrink-0" />
+          {isLoggingOut ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600 flex-shrink-0" />
+          ) : (
+            <LogOut className="h-5 w-5 flex-shrink-0" />
+          )}
           <AnimatePresence>
             {(!isCollapsed || isMobile) && (
               <motion.span
@@ -231,11 +245,11 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
                 transition={{ duration: 0.2 }}
                 className="font-medium overflow-hidden whitespace-nowrap"
               >
-                Logout
+                {isLoggingOut ? 'Logging out...' : 'Logout'}
               </motion.span>
             )}
           </AnimatePresence>
-        </Button>
+        </motion.button>
       </div>
     </motion.div>
   )
@@ -277,7 +291,7 @@ export default function Sidebar({ onCollapsedChange }: SidebarProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden fixed inset-0 bg-black/50 z-50"
+              className="lg:hidden fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-50"
               onClick={() => setIsMobileOpen(false)}
             />
             <motion.div

@@ -14,7 +14,7 @@ import CourseEnrollmentModal from '@/components/CourseEnrollmentModal'
 export default function CoursesPage() {
   const router = useRouter()
   const { user } = useAuthStore()
-  const { courses, enrolledCourses, fetchEnrolledCourses, fetchProfessorCourses, isLoading } = useCourseStore()
+  const { courses, enrolledCourses, fetchEnrolledCourses, fetchProfessorCourses, isInitialLoading } = useCourseStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState(user?.role === 'professor' ? 'enrolled' : 'all') // all, enrolled, available
   const [showEnrollmentModal, setShowEnrollmentModal] = useState(false)
@@ -24,8 +24,8 @@ export default function CoursesPage() {
       if (user.role === 'professor') {
         fetchProfessorCourses(user.id)
       } else {
-      fetchEnrolledCourses(user.id)
-    }
+        fetchEnrolledCourses(user.id)
+      }
     }
   }, [user, fetchEnrolledCourses, fetchProfessorCourses])
 
@@ -38,7 +38,6 @@ export default function CoursesPage() {
 
   const handleJoinCourse = (courseId: string) => {
     // TODO: Implement join course functionality for students
-    console.log('Joining course:', courseId)
   }
 
   // Filter courses based on search term
@@ -96,14 +95,14 @@ export default function CoursesPage() {
               </Button>
            )}
           {user?.role === 'student' && (
-                         <Button 
-               size="lg" 
-               className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150"
-               onClick={() => setShowEnrollmentModal(true)}
-             >
-          <Plus className="w-4 h-4 mr-2" />
-          Join New Course
-        </Button>
+            <Button 
+              size="lg" 
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150"
+              onClick={() => setShowEnrollmentModal(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Join Course
+            </Button>
           )}
         </div>
       </motion.div>
@@ -183,7 +182,7 @@ export default function CoursesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {isInitialLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="animate-pulse">
@@ -191,27 +190,27 @@ export default function CoursesPage() {
                     </div>
                   ))}
                 </div>
-                             ) : filteredProfessorCourses.length === 0 ? (
-                 <div className="text-center py-8">
-                   <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                     {searchTerm ? 'No courses found' : 'No active courses'}
-                   </h3>
-                   <p className="text-gray-600 mb-4">
-                     {searchTerm 
-                       ? 'Try adjusting your search terms or create a new course.' 
-                       : 'Create a new course to start teaching.'
-                     }
-                   </p>
-                                       <Button 
-                      className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150 text-white"
-                      onClick={() => router.push('/dashboard/courses/create')}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create a New Course
-                    </Button>
-                 </div>
-               ) : (
+              ) : filteredProfessorCourses.length === 0 ? (
+                <div className="text-center py-8">
+                  <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {searchTerm ? 'No courses found' : 'You have not created any courses yet'}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchTerm 
+                      ? 'Try adjusting your search terms or create a new course.' 
+                      : 'Create your first course to start teaching and sharing knowledge with students.'
+                    }
+                  </p>
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150 text-white"
+                    onClick={() => router.push('/dashboard/courses/create')}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Your First Course
+                  </Button>
+                </div>
+              ) : (
                  <div className="space-y-4">
                    {filteredProfessorCourses.map((course) => (
                     <div 
@@ -287,7 +286,7 @@ export default function CoursesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {isInitialLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="animate-pulse">
@@ -295,22 +294,22 @@ export default function CoursesPage() {
                     </div>
                   ))}
                 </div>
-                             ) : filteredStudentCourses.length === 0 ? (
+              ) : filteredStudentCourses.length === 0 ? (
                 <div className="text-center py-8">
                   <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                     {searchTerm ? 'No courses found' : 'No courses enrolled'}
-                   </h3>
-                   <p className="text-gray-600 mb-4">
-                     {searchTerm 
-                       ? 'Try adjusting your search terms or join a course.' 
-                       : 'Join a course to get started with your learning journey.'
-                     }
-                   </p>
-                   <Button 
-                     className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150 text-white"
-                     onClick={() => setShowEnrollmentModal(true)}
-                   >
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {searchTerm ? 'No courses found' : 'You have joined no courses yet'}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchTerm 
+                      ? 'Try adjusting your search terms or join a course.' 
+                      : 'Join your first course to start your learning journey and connect with professors and fellow students.'
+                    }
+                  </p>
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150 text-white"
+                    onClick={() => setShowEnrollmentModal(true)}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Join Your First Course
                   </Button>
@@ -394,10 +393,24 @@ export default function CoursesPage() {
               {filteredCourses.length === 0 ? (
                 <div className="text-center py-8">
                   <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No courses found</h3>
-                  <p className="text-gray-600">
-                    Try adjusting your search terms or check back later for new courses.
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {searchTerm ? 'No courses found' : 'No available courses'}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchTerm 
+                      ? 'Try adjusting your search terms or check back later for new courses.' 
+                      : 'There are currently no courses available for enrollment. Check back later or ask your professors to create courses.'
+                    }
                   </p>
+                  {!searchTerm && (
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all duration-150 text-white"
+                      onClick={() => setShowEnrollmentModal(true)}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Browse All Courses
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

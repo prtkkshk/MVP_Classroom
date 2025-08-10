@@ -89,29 +89,17 @@ export default function LiveSessionPage() {
   const loadSessions = async () => {
     setIsLoading(true)
     try {
-      // Mock data - replace with actual API call
-      setSessions([
-        {
-          id: '1',
-          title: 'Lecture 1: Introduction to Data Structures',
-          status: 'live',
-          start_time: '2024-01-20T10:00:00Z',
-          participants: 45,
-          max_participants: 60,
-          created_by: 'Dr. Sarah Johnson'
-        },
-        {
-          id: '2',
-          title: 'Q&A Session - Assignment 1',
-          status: 'scheduled',
-          start_time: '2024-01-22T14:00:00Z',
-          participants: 0,
-          max_participants: 60,
-          created_by: 'Dr. Sarah Johnson'
-        }
-      ])
+      // Fetch live sessions from API
+      const response = await fetch(`/api/courses/${courseId}/live-sessions`)
+      if (response.ok) {
+        const data = await response.json()
+        setSessions(data.sessions || [])
+      } else {
+        setSessions([])
+      }
     } catch (error) {
       toast.error('Failed to load sessions')
+      setSessions([])
     } finally {
       setIsLoading(false)
     }
@@ -119,29 +107,17 @@ export default function LiveSessionPage() {
 
   const loadDoubts = async () => {
     try {
-      // Mock data - replace with actual API call
-      setDoubts([
-        {
-          id: '1',
-          text: 'Can you explain the difference between arrays and linked lists?',
-          student_name: 'John Doe',
-          anonymous: false,
-          upvotes: 5,
-          answered: false,
-          created_at: '2024-01-20T10:15:00Z'
-        },
-        {
-          id: '2',
-          text: 'What is the time complexity of binary search?',
-          student_name: 'Anonymous',
-          anonymous: true,
-          upvotes: 3,
-          answered: true,
-          created_at: '2024-01-20T10:20:00Z'
-        }
-      ])
+      // Fetch doubts from API
+      const response = await fetch(`/api/courses/${courseId}/doubts`)
+      if (response.ok) {
+        const data = await response.json()
+        setDoubts(data.doubts || [])
+      } else {
+        setDoubts([])
+      }
     } catch (error) {
       toast.error('Failed to load doubts')
+      setDoubts([])
     }
   }
 

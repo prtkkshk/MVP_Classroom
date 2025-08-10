@@ -1,56 +1,86 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import MainLayout from '@/components/layout/MainLayout'
 import useAuthStore from '@/store/authStore'
 import useCourseStore from '@/store/courseStore'
+import { toast } from 'sonner'
 import { 
-  Shield, 
   UserPlus, 
-  Users, 
   BookOpen, 
-  GraduationCap, 
-  Loader2,
-  TrendingUp,
-  Activity,
-  Database,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Settings,
+  Settings, 
+  Users, 
+  TrendingUp, 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle,
   BarChart3,
-  FileText,
-  Download,
-  Eye,
-  Plus
+  Activity,
+  Shield,
+  Bot,
+  Loader2,
+  Eye
 } from 'lucide-react'
 
+interface PlatformStats {
+  totalUsers: number
+  totalProfessors: number
+  totalStudents: number
+  totalCourses: number
+  activeUsers: number
+  systemHealth: {
+    database: { status: string; responseTime: string }
+    storage: { status: string; usage: string }
+    uptime: { status: string; percentage: string }
+  }
+  uptime: number
+  lastBackup: Date
+}
+
+interface RecentActivity {
+  id: string
+  type: 'professor_created' | 'course_created' | 'user_enrolled' | 'system_update'
+  title: string
+  description: string
+  timestamp: Date
+  user?: string
+  status?: 'success' | 'info' | 'warning'
+}
+
+interface ProfessorFormData {
+  email: string
+  username: string
+  name: string
+  password: string
+  confirmPassword: string
+}
+
 export default function AdminPage() {
+  const { user: currentUser, createProfessor } = useAuthStore()
+  const { courses, fetchCourses } = useCourseStore()
+  
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProfessorFormData>({
     email: '',
     username: '',
     name: '',
     password: '',
     confirmPassword: ''
   })
-  
-  const { user } = useAuthStore()
-  const { courses, fetchCourses, isLoading: coursesLoading } = useCourseStore()
-  const createProfessor = useAuthStore(state => state.createProfessor)
 
   // Platform statistics state
-  const [platformStats, setPlatformStats] = useState({
+  const [platformStats, setPlatformStats] = useState<PlatformStats>({
+    totalUsers: 0,
     totalProfessors: 0,
     totalStudents: 0,
     totalCourses: 0,
@@ -59,44 +89,30 @@ export default function AdminPage() {
       database: { status: 'healthy', responseTime: '45ms' },
       storage: { status: 'normal', usage: '23%' },
       uptime: { status: 'excellent', percentage: '99.9%' }
-    }
+    },
+    uptime: 99.9,
+    lastBackup: new Date()
   })
 
   // Recent activities state
-  const [recentActivities, setRecentActivities] = useState([
-    {
-      id: '1',
-      type: 'professor_created',
-      title: 'New professor account created',
-      description: 'Dr. Sarah Johnson joined the platform',
-      timestamp: new Date('2024-01-20T10:00:00'),
-      status: 'success'
-    },
-    {
-      id: '2',
-      type: 'course_created',
-      title: 'New course added',
-      description: 'Advanced Mathematics by Prof. Smith',
-      timestamp: new Date('2024-01-20T09:30:00'),
-      status: 'success'
-    },
-    {
-      id: '3',
-      type: 'enrollment_spike',
-      title: 'Student enrollment spike',
-      description: '15 new students joined today',
-      timestamp: new Date('2024-01-20T08:15:00'),
-      status: 'info'
-    },
-    {
-      id: '4',
-      type: 'system_alert',
-      title: 'System maintenance completed',
-      description: 'Database optimization finished successfully',
-      timestamp: new Date('2024-01-20T07:00:00'),
-      status: 'success'
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
+
+  // Fetch recent activities
+  useEffect(() => {
+    const fetchRecentActivities = async () => {
+      try {
+        const response = await fetch('/api/admin/activities/recent')
+        if (response.ok) {
+          const data = await response.json()
+          setRecentActivities(data.activities || [])
+        }
+      } catch (error) {
+        console.error('Error fetching recent activities:', error)
+      }
     }
-  ])
+
+    fetchRecentActivities()
+  }, [])
 
   // Quick actions
   const quickActions = [
@@ -116,14 +132,7 @@ export default function AdminPage() {
       color: 'green',
       href: '/admin/courses'
     },
-    {
-      id: 'view_analytics',
-      title: 'View Analytics',
-      description: 'Platform usage statistics',
-      icon: BarChart3,
-      color: 'orange',
-      href: '/admin/analytics'
-    },
+
     {
       id: 'system_settings',
       title: 'System Settings',
@@ -141,7 +150,7 @@ export default function AdminPage() {
   useEffect(() => {
     // Calculate platform statistics from courses data
     if (courses.length > 0) {
-      const totalStudents = courses.reduce((acc, course) => acc + (course.enrolled_students || 0), 0)
+      const totalStudents = courses.reduce((acc, course) => acc + (course.max_students || 0), 0)
       const uniqueProfessors = new Set(courses.map(course => course.professor_id)).size
       
       setPlatformStats(prev => ({
@@ -149,7 +158,7 @@ export default function AdminPage() {
         totalProfessors: uniqueProfessors,
         totalStudents,
         totalCourses: courses.length,
-        activeUsers: Math.round((totalStudents + uniqueProfessors) * 0.85)
+        activeUsers: 0 // Will be calculated from actual user activity data
       }))
     }
   }, [courses])
@@ -178,13 +187,13 @@ export default function AdminPage() {
         })
         
         // Add to recent activities
-        const newActivity = {
+        const newActivity: RecentActivity = {
           id: Date.now().toString(),
           type: 'professor_created',
           title: 'New professor account created',
           description: `${formData.name} joined the platform`,
           timestamp: new Date(),
-          status: 'success' as const
+          status: 'success'
         }
         setRecentActivities(prev => [newActivity, ...prev.slice(0, 3)])
       } else {
@@ -208,7 +217,7 @@ export default function AdminPage() {
       case 'info':
         return <Activity className="w-4 h-4 text-blue-500" />
       case 'warning':
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />
+        return <AlertTriangle className="w-4 h-4 text-yellow-500" />
       default:
         return <Activity className="w-4 h-4 text-gray-500" />
     }
@@ -227,7 +236,7 @@ export default function AdminPage() {
     }
   }
 
-  if (!user || user.role !== 'super_admin') {
+  if (!currentUser || currentUser.role !== 'super_admin') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -257,7 +266,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Welcome, {user?.name}!
+                    Welcome, {currentUser?.name}!
                   </h1>
                   <p className="text-gray-600 text-lg">
                     Platform administration and oversight dashboard
@@ -304,7 +313,7 @@ export default function AdminPage() {
                   <p className="text-xs text-green-600">+15% from last month</p>
                 </div>
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <GraduationCap className="w-5 h-5 text-green-600" />
+                  <Bot className="w-5 h-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -407,10 +416,10 @@ export default function AdminPage() {
                         {recentActivities.map((activity) => (
                           <div
                             key={activity.id}
-                            className={`flex items-start space-x-3 p-3 rounded-lg ${getStatusColor(activity.status)}`}
+                            className={`flex items-start space-x-3 p-3 rounded-lg ${getStatusColor(activity.status || 'info')}`}
                           >
                             <div className="flex-shrink-0 mt-1">
-                              {getStatusIcon(activity.status)}
+                              {getStatusIcon(activity.status || 'info')}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900">{activity.title}</p>

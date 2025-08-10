@@ -19,6 +19,7 @@ interface CourseStore {
   // State
   courses: Course[]
   enrollments: CourseEnrollment[]
+  enrolledCourses: Course[] // Add this for enrolled courses
   materials: CourseMaterial[]
   announcements: CourseAnnouncement[]
   liveSessions: LiveSession[]
@@ -30,6 +31,7 @@ interface CourseStore {
   calendarEvents: CalendarEvent[]
   notifications: Notification[]
   isLoading: boolean
+  isInitialLoading: boolean
   error: string | null
 
   // Course Management
@@ -104,6 +106,7 @@ const useCourseStore = create<CourseStore>((set, get) => ({
   // Initial state
   courses: [],
   enrollments: [],
+  enrolledCourses: [], // Add this for enrolled courses
   materials: [],
   announcements: [],
   liveSessions: [],
@@ -115,6 +118,7 @@ const useCourseStore = create<CourseStore>((set, get) => ({
   calendarEvents: [],
   notifications: [],
   isLoading: false,
+  isInitialLoading: false,
   error: null,
 
   // Course Management
@@ -138,7 +142,7 @@ const useCourseStore = create<CourseStore>((set, get) => ({
   },
 
   fetchProfessorCourses: async (professorId: string) => {
-    set({ isLoading: true, error: null })
+    set({ isInitialLoading: true, error: null })
     try {
       const { data, error } = await supabase
         .from('courses')
@@ -147,14 +151,14 @@ const useCourseStore = create<CourseStore>((set, get) => ({
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      set({ courses: data || [], isLoading: false })
+      set({ courses: data || [], isInitialLoading: false })
     } catch (error) {
-      set({ error: (error as Error).message, isLoading: false })
+      set({ error: (error as Error).message, isInitialLoading: false })
     }
   },
 
   fetchEnrolledCourses: async (studentId: string) => {
-    set({ isLoading: true, error: null })
+    set({ isInitialLoading: true, error: null })
     try {
       const { data, error } = await supabase
         .from('course_enrollments')
@@ -166,13 +170,17 @@ const useCourseStore = create<CourseStore>((set, get) => ({
         .eq('status', 'approved')
 
       if (error) throw error
+      
+      // Extract the courses from enrollments
+      const enrolledCourses = data?.map(e => e.courses).filter(Boolean) || []
+      
       set({ 
         enrollments: data || [], 
-        courses: data?.map(e => e.courses).filter(Boolean) || [],
-        isLoading: false 
+        enrolledCourses: enrolledCourses, // Set enrolledCourses properly
+        isInitialLoading: false 
       })
     } catch (error) {
-      set({ error: (error as Error).message, isLoading: false })
+      set({ error: (error as Error).message, isInitialLoading: false })
     }
   },
 
@@ -987,14 +995,14 @@ const useCourseStore = create<CourseStore>((set, get) => ({
   fetchNotifications: async (userId) => {
     set({ isLoading: true, error: null })
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+      const response = await fetch(`/api/notifications?userId=${userId}`)
+      const result = await response.json()
 
-      if (error) throw error
-      set({ notifications: data || [], isLoading: false })
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch notifications')
+      }
+
+      set({ notifications: result.data || [], isLoading: false })
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false })
     }
@@ -1002,18 +1010,26 @@ const useCourseStore = create<CourseStore>((set, get) => ({
 
   markNotificationAsRead: async (notificationId) => {
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId)
-        .select()
-        .single()
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notificationId,
+          action: 'markAsRead'
+        })
+      })
 
-      if (error) throw error
-      
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to mark notification as read')
+      }
+
       const { notifications } = get()
       set({ 
-        notifications: notifications.map(n => n.id === notificationId ? data : n)
+        notifications: notifications.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       })
       return { success: true }
     } catch (error) {
@@ -1023,14 +1039,23 @@ const useCourseStore = create<CourseStore>((set, get) => ({
 
   markAllNotificationsAsRead: async (userId) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', userId)
-        .eq('is_read', false)
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notificationId: userId, // Pass userId as notificationId for this action
+          action: 'markAllAsRead'
+        })
+      })
 
-      if (error) throw error
-      
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to mark all notifications as read')
+      }
+
       const { notifications } = get()
       set({ 
         notifications: notifications.map(n => ({ ...n, is_read: true }))
@@ -1043,13 +1068,23 @@ const useCourseStore = create<CourseStore>((set, get) => ({
 
   deleteNotification: async (notificationId) => {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
+      const response = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notificationId,
+          action: 'delete'
+        })
+      })
 
-      if (error) throw error
-      
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete notification')
+      }
+
       const { notifications } = get()
       set({ 
         notifications: notifications.filter(n => n.id !== notificationId)
@@ -1065,6 +1100,7 @@ const useCourseStore = create<CourseStore>((set, get) => ({
   clearStore: () => set({
     courses: [],
     enrollments: [],
+    enrolledCourses: [],
     materials: [],
     announcements: [],
     liveSessions: [],
@@ -1076,6 +1112,7 @@ const useCourseStore = create<CourseStore>((set, get) => ({
     calendarEvents: [],
     notifications: [],
     isLoading: false,
+    isInitialLoading: false,
     error: null
   })
 }))

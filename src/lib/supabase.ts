@@ -388,7 +388,7 @@ export interface Database {
       calendar_events: {
         Row: {
           id: string
-          course_id: string
+          course_id: string | null
           title: string
           description: string | null
           event_type: 'assignment' | 'exam' | 'live_session' | 'deadline' | 'other'
@@ -396,12 +396,22 @@ export interface Database {
           end_date: string | null
           all_day: boolean
           created_by: string
+          priority: 'low' | 'normal' | 'high' | 'urgent'
+          location: string | null
+          attendees: any | null
+          recurring_pattern: string | null
+          reminder_settings: any | null
+          color: string | null
+          is_private: boolean
+          tags: any | null
+          external_id: string | null
+          external_source: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          course_id: string
+          course_id?: string | null
           title: string
           description?: string | null
           event_type: 'assignment' | 'exam' | 'live_session' | 'deadline' | 'other'
@@ -409,12 +419,22 @@ export interface Database {
           end_date?: string | null
           all_day?: boolean
           created_by: string
+          priority?: 'low' | 'normal' | 'high' | 'urgent'
+          location?: string | null
+          attendees?: any | null
+          recurring_pattern?: string | null
+          reminder_settings?: any | null
+          color?: string | null
+          is_private?: boolean
+          tags?: any | null
+          external_id?: string | null
+          external_source?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          course_id?: string
+          course_id?: string | null
           title?: string
           description?: string | null
           event_type?: 'assignment' | 'exam' | 'live_session' | 'deadline' | 'other'
@@ -422,6 +442,16 @@ export interface Database {
           end_date?: string | null
           all_day?: boolean
           created_by?: string
+          priority?: 'low' | 'normal' | 'high' | 'urgent'
+          location?: string | null
+          attendees?: any | null
+          recurring_pattern?: string | null
+          reminder_settings?: any | null
+          color?: string | null
+          is_private?: boolean
+          tags?: any | null
+          external_id?: string | null
+          external_source?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -432,7 +462,7 @@ export interface Database {
           user_id: string
           title: string
           message: string
-          type: 'enrollment' | 'announcement' | 'assignment' | 'live_session' | 'doubt' | 'poll' | 'system'
+          type: 'enrollment' | 'announcement' | 'assignment' | 'live_session' | 'doubt' | 'poll' | 'system' | 'admin_message'
           is_read: boolean
           related_id: string | null
           related_type: string | null
@@ -443,7 +473,7 @@ export interface Database {
           user_id: string
           title: string
           message: string
-          type: 'enrollment' | 'announcement' | 'assignment' | 'live_session' | 'doubt' | 'poll' | 'system'
+          type: 'enrollment' | 'announcement' | 'assignment' | 'live_session' | 'doubt' | 'poll' | 'system' | 'admin_message'
           is_read?: boolean
           related_id?: string | null
           related_type?: string | null
@@ -454,11 +484,72 @@ export interface Database {
           user_id?: string
           title?: string
           message?: string
-          type?: 'enrollment' | 'announcement' | 'assignment' | 'live_session' | 'doubt' | 'poll' | 'system'
+          type?: 'enrollment' | 'announcement' | 'assignment' | 'live_session' | 'doubt' | 'poll' | 'system' | 'admin_message'
           is_read?: boolean
           related_id?: string | null
           related_type?: string | null
           created_at?: string
+        }
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          sender_id: string
+          receiver_id: string
+          content: string
+          message_type: 'text' | 'image' | 'file'
+          is_read: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          sender_id: string
+          receiver_id: string
+          content: string
+          message_type?: 'text' | 'image' | 'file'
+          is_read?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          sender_id?: string
+          receiver_id?: string
+          content?: string
+          message_type?: 'text' | 'image' | 'file'
+          is_read?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      message_requests: {
+        Row: {
+          id: string
+          requester_id: string
+          recipient_id: string
+          status: 'pending' | 'approved' | 'rejected'
+          message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          requester_id: string
+          recipient_id: string
+          status?: 'pending' | 'approved' | 'rejected'
+          message?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          requester_id?: string
+          recipient_id?: string
+          status?: 'pending' | 'approved' | 'rejected'
+          message?: string | null
+          created_at?: string
+          updated_at?: string
         }
       }
     }

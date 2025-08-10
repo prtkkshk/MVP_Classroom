@@ -133,7 +133,7 @@ export default function AdminSettingsPage() {
     toast.success('Settings reset to defaults')
   }
 
-  const updateSetting = (category: keyof PlatformSettings, key: string, value: any) => {
+  const updateSetting = (category: keyof PlatformSettings, key: string, value: string | number | boolean | string[]) => {
     setSettings(prev => ({
       ...prev,
       [category]: {

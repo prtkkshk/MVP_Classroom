@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -19,6 +20,7 @@ export default function DashboardLayout({
   const router = useRouter()
   const { user, isAuthenticated, isLoading, signOut } = useAuthStore()
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -27,8 +29,18 @@ export default function DashboardLayout({
   }, [isAuthenticated, isLoading, router])
 
   const handleSignOut = async () => {
-    await signOut()
-    router.push('/login')
+    console.log('Dashboard layout logout button clicked')
+    if (isLoggingOut) return // Prevent multiple clicks
+    
+    setIsLoggingOut(true)
+    try {
+      await signOut()
+      console.log('Sign out completed, redirecting to login')
+      // The signOut function now handles the redirect
+    } catch (error) {
+      console.error('Error during logout:', error)
+      setIsLoggingOut(false)
+    }
   }
 
   if (isLoading) {
@@ -91,19 +103,33 @@ export default function DashboardLayout({
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem>
+                  <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}>
+                    <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                  </motion.div>
+                  <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}>
+                    <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                  </motion.div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
+                  <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}>
+                    <DropdownMenuItem 
+                      onClick={handleSignOut}
+                      disabled={isLoggingOut}
+                      className={isLoggingOut ? 'opacity-50 cursor-not-allowed' : ''}
+                    >
+                      {isLoggingOut ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2" />
+                      ) : (
+                        <LogOut className="mr-2 h-4 w-4" />
+                      )}
+                      <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
+                    </DropdownMenuItem>
+                  </motion.div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

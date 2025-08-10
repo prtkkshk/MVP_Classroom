@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +22,7 @@ import useAuthStore from '@/store/authStore'
 import useCourseStore from '@/store/courseStore'
 
 export default function StudentDashboard() {
+  const router = useRouter()
   const { user } = useAuthStore()
   const { enrolledCourses, fetchEnrolledCourses, isLoading } = useCourseStore()
   const [stats, setStats] = useState({
@@ -38,33 +40,44 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     // Calculate stats from enrolled courses
-    const totalStudents = enrolledCourses.reduce((acc, course) => acc + (course.enrolled_students || 0), 0)
-    setStats({
-      totalCourses: enrolledCourses.length,
-      totalQuestions: totalStudents, // This will be replaced with actual doubt count
-      studyHours: enrolledCourses.length * 3, // Mock data - will be replaced with actual study time
-      assignmentsDue: enrolledCourses.length * 2 // Mock data - will be replaced with actual assignments
-    })
+    if (enrolledCourses && enrolledCourses.length > 0) {
+      const totalStudents = enrolledCourses.reduce((acc, course) => acc + (course.enrolled_students || 0), 0)
+      setStats({
+        totalCourses: enrolledCourses.length,
+        totalQuestions: totalStudents, // This will be replaced with actual doubt count
+        studyHours: 0, // Will be calculated from actual study time data
+        assignmentsDue: 0 // Will be calculated from actual assignments data
+      })
+    } else {
+      setStats({
+        totalCourses: 0,
+        totalQuestions: 0,
+        studyHours: 0,
+        assignmentsDue: 0
+      })
+    }
   }, [enrolledCourses])
 
-  const recentActivities = [
-    {
-      id: '1',
-      type: 'material_uploaded',
-      title: 'New material uploaded',
-      description: 'Binary Trees Implementation.cpp was uploaded to Advanced Data Structures',
-      timestamp: new Date('2024-01-20T09:00:00'),
-      courseId: '1'
-    },
-    {
-      id: '2',
-      type: 'doubt_asked',
-      title: 'Question asked in live session',
-      description: 'You asked about time complexity in Advanced Data Structures',
-      timestamp: new Date('2024-01-15T10:30:00'),
-      courseId: '1'
+  const [recentActivities, setRecentActivities] = useState<any[]>([])
+
+  // Fetch recent activities from API
+  useEffect(() => {
+    const fetchRecentActivities = async () => {
+      try {
+        const response = await fetch('/api/activities/recent')
+        if (response.ok) {
+          const data = await response.json()
+          setRecentActivities(data.activities || [])
+        }
+      } catch (error) {
+        console.error('Error fetching recent activities:', error)
+      }
     }
-  ]
+
+    if (user) {
+      fetchRecentActivities()
+    }
+  }, [user])
 
   return (
     <div className="p-6 space-y-6">
@@ -184,19 +197,22 @@ export default function StudentDashboard() {
                     </div>
                   ))}
                 </div>
-              ) : enrolledCourses.length === 0 ? (
+              ) : !enrolledCourses || enrolledCourses.length === 0 ? (
                 <div className="text-center py-8">
                   <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No courses enrolled</h3>
                   <p className="text-gray-600 mb-4">Join a course to get started with your learning journey.</p>
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => router.push('/dashboard/courses')}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Join Your First Course
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {enrolledCourses.slice(0, 3).map((course) => (
+                  {enrolledCourses?.slice(0, 3).map((course) => (
                     <div key={course.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="flex items-center space-x-4">
                         <div className="p-2 bg-blue-100 rounded-lg">
@@ -227,7 +243,7 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                   ))}
-                  {enrolledCourses.length > 3 && (
+                  {enrolledCourses && enrolledCourses.length > 3 && (
                     <div className="text-center pt-4">
                       <Button variant="outline">
                         View All {enrolledCourses.length} Courses

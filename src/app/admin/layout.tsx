@@ -15,10 +15,17 @@ export default function AdminLayout({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login')
-    } else if (!isLoading && isAuthenticated && user?.role !== 'super_admin') {
-      router.push('/dashboard')
+    // Only redirect after loading is complete and we have a definitive auth state
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        console.log('Admin layout: Not authenticated, redirecting to login')
+        router.push('/login')
+      } else if (isAuthenticated && user?.role !== 'super_admin') {
+        console.log('Admin layout: Not admin, redirecting to dashboard')
+        router.push('/dashboard')
+      } else if (isAuthenticated && user?.role === 'super_admin') {
+        console.log('Admin layout: Admin authenticated successfully')
+      }
     }
   }, [isAuthenticated, isLoading, user, router])
 
@@ -46,14 +53,23 @@ export default function AdminLayout({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
+          <p className="mt-2 text-gray-600">Loading authentication...</p>
         </div>
       </div>
     )
   }
 
+  // Don't render anything if not authenticated or not admin
+  // The useEffect above will handle redirects
   if (!isAuthenticated || !user || user.role !== 'super_admin') {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

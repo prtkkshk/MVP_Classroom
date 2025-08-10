@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -76,6 +76,7 @@ export default function UserManagementPage() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const hasMounted = useRef(false)
   
   // Dialog states
   const [showUserDetails, setShowUserDetails] = useState<string | null>(null)
@@ -144,6 +145,12 @@ export default function UserManagementPage() {
 
   // Fetch users from database
   const fetchUsers = async () => {
+    // Prevent multiple simultaneous calls
+    if (isRefreshing) {
+      console.log('Fetch already in progress, skipping...')
+      return
+    }
+    
     try {
       console.log('Starting fetchUsers...')
       setIsRefreshing(true)
@@ -196,6 +203,7 @@ export default function UserManagementPage() {
       
       // Success feedback
       toast.dismiss(loadingToast)
+      toast.success(`Loaded ${enhancedUsers.length} users successfully`)
     } catch (error) {
       console.error('Error in fetchUsers:', error)
       toast.error(`Failed to fetch users: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -207,6 +215,12 @@ export default function UserManagementPage() {
   }
 
   useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (hasMounted.current) {
+      return
+    }
+    hasMounted.current = true
+    
     // Check if Supabase is properly configured
     console.log('Environment check:')
     console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Set' : 'Not set')
@@ -350,7 +364,17 @@ export default function UserManagementPage() {
                         action === 'delete' ? 'deactivated' : 'removed'
       toast.success(`${selectedUsers.length} users ${actionText} successfully`)
       setSelectedUsers([])
-      fetchUsers() // Refresh the list
+      // Update local state instead of full refresh
+      setUsers(prev => prev.map(user => 
+        selectedUsers.includes(user.id) 
+          ? { ...user, status: action === 'activate' ? 'active' : 'inactive' }
+          : user
+      ))
+      setFilteredUsers(prev => prev.map(user => 
+        selectedUsers.includes(user.id) 
+          ? { ...user, status: action === 'activate' ? 'active' : 'inactive' }
+          : user
+      ))
     } catch (error) {
       console.error('Error in bulk action:', error)
       toast.error('Failed to perform bulk action')
@@ -404,7 +428,17 @@ export default function UserManagementPage() {
 
       toast.success('User updated successfully')
       setShowEditUser(null)
-      fetchUsers() // Refresh the list
+      // Update local state instead of full refresh
+      setUsers(prev => prev.map(user => 
+        user.id === showEditUser 
+          ? { ...user, ...editUserData, updated_at: new Date().toISOString() }
+          : user
+      ))
+      setFilteredUsers(prev => prev.map(user => 
+        user.id === showEditUser 
+          ? { ...user, ...editUserData, updated_at: new Date().toISOString() }
+          : user
+      ))
     } catch (error) {
       console.error('Error in handleSaveUser:', error)
       toast.error('Failed to update user')
@@ -419,23 +453,33 @@ export default function UserManagementPage() {
     try {
       setIsSending(true)
       
-      // Create notification for the user
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: showSendMessage,
-          title: messageData.subject,
-          message: messageData.message,
-          type: 'system',
-          is_read: false
+      // Show loading feedback
+      const loadingToast = toast.loading('Sending message...')
+      
+      // Use the admin API route to send message
+      const response = await fetch('/api/admin/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: showSendMessage,
+          subject: messageData.subject,
+          message: messageData.message
         })
+      })
 
-      if (error) {
-        console.error('Error sending message:', error)
-        toast.error('Failed to send message')
+      const result = await response.json()
+      
+      if (!response.ok) {
+        console.error('Error sending message:', result.error)
+        toast.dismiss(loadingToast)
+        toast.error(result.error || 'Failed to send message')
         return
       }
 
+      // Success feedback
+      toast.dismiss(loadingToast)
       toast.success('Message sent successfully')
       setShowSendMessage(null)
       setMessageData({ subject: '', message: '' })
@@ -500,7 +544,9 @@ export default function UserManagementPage() {
       }
 
       setShowDeleteConfirm(null)
-      fetchUsers() // Refresh the list
+      // Update local state instead of full refresh
+      setUsers(prev => prev.filter(user => user.id !== showDeleteConfirm))
+      setFilteredUsers(prev => prev.filter(user => user.id !== showDeleteConfirm))
     } catch (error) {
       console.error('Error in handleDeleteUser:', error)
       toast.error('Failed to process user action')
@@ -531,7 +577,17 @@ export default function UserManagementPage() {
       }
 
       toast.success('User activated successfully')
-      fetchUsers() // Refresh the list
+      // Update local state instead of full refresh
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, status: 'active', updated_at: new Date().toISOString() }
+          : user
+      ))
+      setFilteredUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, status: 'active', updated_at: new Date().toISOString() }
+          : user
+      ))
     } catch (error) {
       console.error('Error in handleActivateUser:', error)
       toast.error('Failed to activate user')
@@ -1025,7 +1081,7 @@ export default function UserManagementPage() {
                                   </Button>
                                   <Button 
                                     variant="outline" 
-                                    className="w-full justify-start"
+                                    className="w-full justify-start text-black hover:text-gray-700"
                                     onClick={() => setShowSendMessage(user.id)}
                                   >
                                     <Mail className="w-4 h-4 mr-2" />
@@ -1180,7 +1236,7 @@ export default function UserManagementPage() {
                 <Button 
                   onClick={handleSendMessage}
                   disabled={isSending || !messageData.subject || !messageData.message}
-                  className="flex-1"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
                 >
                   {isSending ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1255,6 +1311,7 @@ export default function UserManagementPage() {
                       <Button 
                         variant="outline" 
                         size="sm"
+                        className="text-blue-600 hover:text-blue-700"
                         onClick={() => {
                           setShowUserDetails(null)
                           setShowSendMessage(user.id)

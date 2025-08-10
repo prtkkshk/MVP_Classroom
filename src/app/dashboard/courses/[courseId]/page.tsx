@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import MainLayout from '@/components/layout/MainLayout'
 import useAuthStore from '@/store/authStore'
 import { 
@@ -23,8 +24,7 @@ import {
   Eye,
   Play,
   Plus,
-  Search,
-  Filter
+  Search
 } from 'lucide-react'
 
 interface CourseMaterial {
@@ -60,7 +60,7 @@ interface Assignment {
 export default function StudentCourseDetailPage({ params }: { params: { courseId: string } }) {
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState('overview')
-  const [course, setCourse] = useState({
+  const [course] = useState({
     id: params.courseId,
     title: 'Advanced Data Structures',
     code: 'CS301',
@@ -74,7 +74,7 @@ export default function StudentCourseDetailPage({ params }: { params: { courseId
     progress: 65
   })
 
-  const [materials, setMaterials] = useState<CourseMaterial[]>([
+  const [materials] = useState<CourseMaterial[]>([
     {
       id: '1',
       name: 'Course Syllabus',
@@ -98,51 +98,51 @@ export default function StudentCourseDetailPage({ params }: { params: { courseId
     {
       id: '3',
       name: 'Binary Trees Implementation',
-      description: 'Complete implementation of binary tree data structure',
+      description: 'Code examples and implementation details for binary trees',
       type: 'readings',
       file_size: '1.8 MB',
-      upload_date: new Date('2024-01-18'),
+      upload_date: new Date('2024-01-17'),
       download_url: '#',
       icon: <FileText className="w-4 h-4" />
     }
   ])
 
-  const [liveSessions, setLiveSessions] = useState<LiveSession[]>([
+  const [liveSessions] = useState<LiveSession[]>([
     {
       id: '1',
-      title: 'Binary Trees Deep Dive',
-      description: 'Comprehensive discussion on binary tree operations and implementations',
-      start_time: new Date('2024-01-26T10:00:00'),
-      end_time: new Date('2024-01-26T11:30:00'),
+      title: 'Data Structures Review Session',
+      description: 'Interactive review session covering arrays, linked lists, and basic algorithms',
+      start_time: new Date('2024-01-20T14:00:00'),
+      end_time: new Date('2024-01-20T15:30:00'),
       is_active: false,
       participant_count: 42
     },
     {
       id: '2',
-      title: 'Q&A Session',
-      description: 'Open question and answer session for all topics covered so far',
-      start_time: new Date('2024-01-28T14:00:00'),
-      end_time: new Date('2024-01-28T15:00:00'),
-      is_active: false,
-      participant_count: 0
+      title: 'Algorithm Complexity Workshop',
+      description: 'Hands-on workshop focusing on time and space complexity analysis',
+      start_time: new Date('2024-01-22T10:00:00'),
+      end_time: new Date('2024-01-22T11:30:00'),
+      is_active: true,
+      participant_count: 38
     }
   ])
 
-  const [assignments, setAssignments] = useState<Assignment[]>([
+  const [assignments] = useState<Assignment[]>([
     {
       id: '1',
-      title: 'Binary Search Tree Implementation',
-      description: 'Implement a complete binary search tree with insertion, deletion, and search operations',
+      title: 'Linked List Implementation',
+      description: 'Implement a singly linked list with basic operations',
       due_date: new Date('2024-01-25T23:59:00'),
       max_points: 100,
-      status: 'due_today'
+      status: 'upcoming'
     },
     {
       id: '2',
-      title: 'Algorithm Analysis Report',
-      description: 'Analyze the time complexity of various tree traversal algorithms',
-      due_date: new Date('2024-01-30T23:59:00'),
-      max_points: 50,
+      title: 'Stack and Queue Analysis',
+      description: 'Analyze the efficiency of different stack and queue implementations',
+      due_date: new Date('2024-01-28T23:59:00'),
+      max_points: 75,
       status: 'upcoming'
     }
   ])

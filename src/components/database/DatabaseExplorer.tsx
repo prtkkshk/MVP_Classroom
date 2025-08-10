@@ -188,31 +188,21 @@ export default function DatabaseExplorer() {
   const loadTableData = async (tableName: string) => {
     setIsLoading(true)
     try {
-      // Mock data - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Mock schema data
-      const mockSchema: TableSchema[] = [
-        { column: 'id', type: 'uuid', nullable: false, default: 'uuid_generate_v4()', key: 'PRIMARY KEY' },
-        { column: 'created_at', type: 'timestamp', nullable: false, default: 'now()', key: '' },
-        { column: 'updated_at', type: 'timestamp', nullable: true, default: null, key: '' },
-        { column: 'name', type: 'text', nullable: false, default: null, key: '' },
-        { column: 'email', type: 'text', nullable: false, default: null, key: 'UNIQUE' },
-        { column: 'role', type: 'text', nullable: false, default: null, key: '' }
-      ]
-
-      // Mock table data
-      const mockData: TableData[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', role: 'student', created_at: '2024-01-15' },
-        { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'professor', created_at: '2024-01-14' },
-        { id: '3', name: 'Bob Johnson', email: 'bob@example.com', role: 'student', created_at: '2024-01-13' }
-      ]
-
-      setTableSchema(mockSchema)
-      setTableData(mockData)
+      // Fetch actual table data from API
+      const response = await fetch(`/api/database/tables/${tableName}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTableSchema(data.schema || [])
+        setTableData(data.data || [])
+      } else {
+        setTableSchema([])
+        setTableData([])
+      }
     } catch (error) {
       console.error('Error loading table data:', error)
       toast.error('Failed to load table data')
+      setTableSchema([])
+      setTableData([])
     } finally {
       setIsLoading(false)
     }
@@ -220,9 +210,19 @@ export default function DatabaseExplorer() {
 
   const handleExportData = async (tableName: string, format: 'csv' | 'json') => {
     try {
-      // Mock export - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      toast.success(`Exported ${tableName} as ${format.toUpperCase()}`)
+      const response = await fetch(`/api/database/export/${tableName}?format=${format}`)
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${tableName}.${format}`
+        a.click()
+        window.URL.revokeObjectURL(url)
+        toast.success(`Exported ${tableName} as ${format.toUpperCase()}`)
+      } else {
+        toast.error('Failed to export data')
+      }
     } catch (error) {
       console.error('Error exporting data:', error)
       toast.error('Failed to export data')
@@ -231,9 +231,14 @@ export default function DatabaseExplorer() {
 
   const handleRefreshStats = async () => {
     try {
-      // Mock refresh - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success('Database stats refreshed')
+      const response = await fetch('/api/database/stats')
+      if (response.ok) {
+        const data = await response.json()
+        // Update stats with actual data
+        toast.success('Database stats refreshed')
+      } else {
+        toast.error('Failed to refresh stats')
+      }
     } catch (error) {
       console.error('Error refreshing stats:', error)
       toast.error('Failed to refresh stats')

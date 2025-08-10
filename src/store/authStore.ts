@@ -86,7 +86,7 @@ const getOrCreateAdminUser = async (username: string): Promise<AuthUser> => {
 
 const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set, get, store) => ({
       user: null,
       supabaseUser: null,
       isAuthenticated: false,
@@ -159,9 +159,17 @@ const useAuthStore = create<AuthStore>()(
 
   signIn: async (username: string, password: string) => {
     try {
+      console.log('Sign in attempt for username:', username)
+      
       // Check for admin login using environment variables
       const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME
       const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+      
+      console.log('Admin credentials check:', { 
+        hasAdminUsername: !!adminUsername, 
+        hasAdminPassword: !!adminPassword,
+        usernameMatch: username === adminUsername 
+      })
       
       if (adminUsername && adminPassword && username === adminUsername && password === adminPassword) {
         // Create admin user without database access to avoid 500 errors
@@ -173,6 +181,7 @@ const useAuthStore = create<AuthStore>()(
           role: 'super_admin'
         }
         
+        console.log('Setting admin user in store:', adminUser)
         set({ 
           user: adminUser, 
           supabaseUser: null, 
@@ -232,20 +241,105 @@ const useAuthStore = create<AuthStore>()(
 
   signOut: async () => {
     try {
-      await supabase.auth.signOut()
+      console.log('Starting sign out process...')
+      
+      // Clear state first to immediately update UI
       set({ user: null, supabaseUser: null, isAuthenticated: false })
-      // Clear persisted data
-      localStorage.removeItem('auth-storage')
+      console.log('Auth state cleared')
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Supabase sign out error:', error)
+      } else {
+        console.log('Supabase sign out successful')
+      }
+      
+      // Comprehensive storage clearing
+      const clearAllStorage = () => {
+        try {
+          // Clear Zustand persisted storage
+          localStorage.removeItem('auth-storage')
+          sessionStorage.removeItem('auth-storage')
+          
+          // Clear any other auth-related storage
+          const authKeys = [
+            'auth-storage',
+            'supabase.auth.token',
+            'supabase.auth.expires_at',
+            'supabase.auth.refresh_token',
+            'supabase.auth.provider_token',
+            'supabase.auth.provider_refresh_token'
+          ]
+          
+          authKeys.forEach(key => {
+            localStorage.removeItem(key)
+            sessionStorage.removeItem(key)
+          })
+          
+          // Clear any keys containing 'auth' or 'supabase'
+          const allKeys = [...Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))]
+          allKeys.forEach(key => {
+            if (key && (key.includes('auth') || key.includes('supabase'))) {
+              localStorage.removeItem(key)
+              console.log(`Cleared storage key: ${key}`)
+            }
+          })
+          
+          console.log('All storage cleared successfully')
+          return true
+        } catch (error) {
+          console.warn('Error clearing storage:', error)
+          return false
+        }
+      }
+      
+      // Clear storage and force redirect
+      clearAllStorage()
+      
+      // Force complete page reload to ensure clean state
+      setTimeout(() => {
+        console.log('Forcing complete page reload for clean logout')
+        // Clear any remaining cookies
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        })
+        
+        // Force redirect to login page
+        window.location.replace('/login')
+      }, 200)
+      
     } catch (error) {
       console.error('Sign out error:', error)
+      // Even if there's an error, clear the state and force redirect
+      set({ user: null, supabaseUser: null, isAuthenticated: false })
+      setTimeout(() => {
+        window.location.replace('/login')
+      }, 200)
     }
   },
 
-  initializeAuth: async () => {
+    initializeAuth: async () => {
     try {
+      console.log('Initializing authentication...')
       set({ isLoading: true })
 
-      // Get current session
+      // First, check if there's a persisted admin session
+      const currentState = get()
+      console.log('Current auth state:', { 
+        isAuthenticated: currentState.isAuthenticated, 
+        userRole: currentState.user?.role,
+        username: currentState.user?.username 
+      })
+      
+      if (currentState.isAuthenticated && currentState.user?.role === 'super_admin') {
+        // Admin session is already persisted, keep it
+        console.log('Restoring persisted admin session for:', currentState.user.username)
+        set({ isLoading: false })
+        return
+      }
+
+      // Get current session for regular users
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session?.user) {
@@ -263,16 +357,9 @@ const useAuthStore = create<AuthStore>()(
             isAuthenticated: true 
           })
         }
-      } else {
-        // Check if there's a persisted admin session
-        const currentState = get()
-        if (currentState.isAuthenticated && currentState.user?.role === 'super_admin') {
-          // Admin session is already persisted, keep it
-          console.log('Restoring persisted admin session')
-        }
       }
 
-      // Listen for auth changes
+      // Listen for auth changes (only for regular users, not admin)
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const { data: userProfile } = await supabase

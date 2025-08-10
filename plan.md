@@ -95,14 +95,12 @@ Professor can create a new course - a random 8 letters are generated (course cod
 ### System Architecture Diagram
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Next.js App   │    │   Supabase      │    │  External APIs  │
-│   (Frontend)    │◄──►│   (Backend)     │◄──►│  (AI Services)  │
-│                 │    │                 │    │                 │
-│ - React UI      │    │ - PostgreSQL    │    │ - OpenAI API    │
-│ - Tailwind CSS  │    │ - Auth & RLS    │    │ - Whisper API   │
-│ - Socket.io     │    │ - Storage       │    │ - Vector DB     │
-│ - ShadCN UI     │    │ - Realtime      │    │ - Pinecone      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+│   Next.js App   │    │   Supabase      │    │   │
+│   (Frontend)    │◄──►│   (Backend)     │◄──►│   │
+│                 │    │                 │    │  │
+│ - Tailwind CSS  │    │ - Auth & RLS    │    │ - │
+│ - Socket.io     │    │ - Storage       │    │ -     │
+│ - ShadCN UI     │    │ - Realtime      │    │ -      │─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ---

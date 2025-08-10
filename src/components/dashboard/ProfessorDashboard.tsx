@@ -207,20 +207,12 @@ export default function ProfessorDashboard() {
         <div className="flex gap-2">
           <Button 
             size="lg" 
-            variant="outline"
-            onClick={() => router.push('/dashboard/analytics')}
+            className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => router.push('/dashboard/courses/create')}
           >
-            <TrendingUp className="w-4 h-4 mr-2" />
-            View Analytics
+            <Plus className="w-4 h-4 mr-2" />
+            Create Course
           </Button>
-        <Button 
-          size="lg" 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => router.push('/dashboard/courses/create')}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Course
-        </Button>
         </div>
       </motion.div>
 
@@ -394,9 +386,6 @@ export default function ProfessorDashboard() {
                 <CardTitle>Top Performing Courses</CardTitle>
                 <CardDescription>Courses with highest student engagement</CardDescription>
               </div>
-              <Button size="sm" variant="outline" onClick={() => router.push('/dashboard/analytics')}>
-                View All
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -485,22 +474,6 @@ export default function ProfessorDashboard() {
                   <div className="text-left">
                     <p className="font-medium">Create New Course</p>
                     <p className="text-sm text-gray-600">Start a new course</p>
-                  </div>
-                </div>
-              </Button>
-
-              <Button 
-                variant="outline" 
-                className="justify-start h-auto p-4"
-                onClick={() => router.push('/dashboard/analytics')}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-medium">View Analytics</p>
-                    <p className="text-sm text-gray-600">Track performance</p>
                   </div>
                 </div>
               </Button>
