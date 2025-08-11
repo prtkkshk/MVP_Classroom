@@ -511,4 +511,516 @@ describe('Security Tests', () => {
       expect(response.status).toBe(200)
     })
   })
+
+  describe('8. Database Security (RLS)', () => {
+    test('should enforce RLS policies on users table', async () => {
+      // Mock RLS policy enforcement
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [], // RLS should filter out unauthorized data
+          error: null
+        })
+      })
+
+      // Test that students can only see their own data
+      const response = await fetch('/api/users/profile', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer student-token'
+        }
+      })
+
+      expect(response.status).toBe(200)
+      // Verify only authorized data is returned
+    })
+
+    test('should enforce RLS policies on courses table', async () => {
+      // Mock course access with RLS
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [], // RLS should filter based on enrollment
+          error: null
+        })
+      })
+
+      // Test that students only see enrolled courses
+      const response = await fetch('/api/courses', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer student-token'
+        }
+      })
+
+      expect(response.status).toBe(200)
+    })
+
+    test('should enforce RLS policies on materials table', async () => {
+      // Mock material access with RLS
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [], // RLS should filter based on course enrollment
+          error: null
+        })
+      })
+
+      // Test that students only see materials from enrolled courses
+      const response = await fetch('/api/materials/course-1', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer student-token'
+        }
+      })
+
+      expect(response.status).toBe(200)
+    })
+
+    test('should prevent unauthorized data access via RLS', async () => {
+      // Mock attempt to bypass RLS
+      mockSupabaseClient.rpc.mockRejectedValue(new Error('RLS policy violation'))
+
+      const response = await fetch('/api/admin/users', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer student-token'
+        }
+      })
+
+      expect(response.status).toBe(403)
+    })
+  })
+
+  describe('9. Password Security', () => {
+    test('should hash passwords before storage', async () => {
+      const user = userEvent.setup()
+      
+      const password = 'SecurePassword123!'
+      
+      // Mock password hashing
+      const mockHash = '$2b$10$hashedpasswordstring'
+      mockSupabaseClient.auth.signUp.mockResolvedValue({
+        data: { user: { id: 'new-user' } },
+        error: null
+      })
+
+      const nameInput = screen.getByLabelText(/full name/i)
+      const emailInput = screen.getByLabelText(/email/i)
+      const passwordInput = screen.getByLabelText(/password/i)
+      const submitButton = screen.getByRole('button', { name: /sign up/i })
+
+      await user.type(nameInput, 'Test User')
+      await user.type(emailInput, 'test@university.edu')
+      await user.type(passwordInput, password)
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        // Verify password was hashed before storage
+        expect(mockSupabaseClient.auth.signUp).toHaveBeenCalledWith({
+          email: 'test@university.edu',
+          password: expect.not.stringMatching(password) // Should not match plain text
+        })
+      })
+    })
+
+    test('should validate password strength requirements', async () => {
+      const user = userEvent.setup()
+      
+      const weakPasswords = [
+        '123', // Too short
+        'password', // No uppercase, numbers, or special chars
+        'PASSWORD', // No lowercase, numbers, or special chars
+        'Password', // No numbers or special chars
+        'Password1', // No special chars
+      ]
+
+      for (const weakPassword of weakPasswords) {
+        const passwordInput = screen.getByLabelText(/password/i)
+        const submitButton = screen.getByRole('button', { name: /sign up/i })
+
+        await user.clear(passwordInput)
+        await user.type(passwordInput, weakPassword)
+        await user.click(submitButton)
+
+        await waitFor(() => {
+          expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument()
+        })
+      }
+    })
+
+    test('should prevent password reuse', async () => {
+      const user = userEvent.setup()
+      
+      const oldPassword = 'OldPassword123!'
+      const newPassword = 'NewPassword123!'
+      
+      // Mock password change
+      mockSupabaseClient.auth.updateUser.mockResolvedValue({
+        data: { user: { id: 'user-1' } },
+        error: null
+      })
+
+      const oldPasswordInput = screen.getByLabelText(/current password/i)
+      const newPasswordInput = screen.getByLabelText(/new password/i)
+      const submitButton = screen.getByRole('button', { name: /change password/i })
+
+      await user.type(oldPasswordInput, oldPassword)
+      await user.type(newPasswordInput, oldPassword) // Try to reuse old password
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/new password must be different/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should enforce password expiration policy', async () => {
+      // Mock expired password
+      mockSupabaseClient.auth.getUser.mockResolvedValue({
+        data: { 
+          user: { 
+            id: 'user-1',
+            last_sign_in_at: '2023-01-01T00:00:00Z' // Old last sign in
+          } 
+        },
+        error: null
+      })
+
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer valid-token'
+        }
+      })
+
+      expect(response.status).toBe(401)
+      const data = await response.json()
+      expect(data.error).toContain('Password expired')
+    })
+  })
+
+  describe('10. JWT Security', () => {
+    test('should prevent JWT token leaks in URLs', async () => {
+      // Mock URL with token in query params
+      const maliciousUrl = 'https://example.com?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.evil'
+      
+      const response = await fetch('/api/redirect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer valid-token'
+        },
+        body: JSON.stringify({ url: maliciousUrl })
+      })
+
+      expect(response.status).toBe(400)
+      const data = await response.json()
+      expect(data.error).toContain('Invalid redirect URL')
+    })
+
+    test('should prevent JWT token leaks in logs', async () => {
+      // Mock logging attempt with sensitive data
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+      
+      // Simulate API call that might log tokens
+      await fetch('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sensitive'
+        }
+      })
+
+      // Verify no sensitive tokens are logged
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sensitive')
+      )
+
+      consoleSpy.mockRestore()
+    })
+
+    test('should validate JWT signature', async () => {
+      // Mock invalid JWT signature
+      const invalidToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid_signature'
+      
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${invalidToken}`
+        }
+      })
+
+      expect(response.status).toBe(401)
+      const data = await response.json()
+      expect(data.error).toContain('Invalid token')
+    })
+
+    test('should handle JWT refresh securely', async () => {
+      // Mock token refresh
+      const refreshToken = 'refresh_token_123'
+      
+      mockSupabaseClient.auth.refreshSession.mockResolvedValue({
+        data: { 
+          session: { 
+            access_token: 'new_access_token',
+            refresh_token: 'new_refresh_token'
+          } 
+        },
+        error: null
+      })
+
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ refresh_token: refreshToken })
+      })
+
+      expect(response.status).toBe(200)
+      const data = await response.json()
+      expect(data.access_token).toBeDefined()
+      expect(data.refresh_token).toBeDefined()
+    })
+  })
+
+  describe('11. API Security', () => {
+    test('should protect all admin endpoints', async () => {
+      const adminEndpoints = [
+        '/api/admin/users',
+        '/api/admin/courses',
+        '/api/admin/analytics',
+        '/api/admin/settings'
+      ]
+
+      for (const endpoint of adminEndpoints) {
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer student-token'
+          }
+        })
+
+        expect(response.status).toBe(403)
+      }
+    })
+
+    test('should validate CSRF tokens on state-changing operations', async () => {
+      const user = userEvent.setup()
+      
+      // Mock CSRF token validation
+      const csrfToken = 'csrf_token_123'
+      
+      const nameInput = screen.getByLabelText(/course name/i)
+      const submitButton = screen.getByRole('button', { name: /create course/i })
+
+      await user.type(nameInput, 'Test Course')
+      await user.click(submitButton)
+
+      // Verify CSRF token was included
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith(
+        expect.stringContaining('courses')
+      )
+    })
+
+    test('should prevent HTTP method tampering', async () => {
+      // Test that POST-only endpoints reject other methods
+      const response = await fetch('/api/courses', {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer professor-token'
+        }
+      })
+
+      expect(response.status).toBe(405) // Method Not Allowed
+    })
+
+    test('should validate request origin', async () => {
+      // Mock request with invalid origin
+      const response = await fetch('/api/courses', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer professor-token',
+          'Origin': 'https://malicious-site.com'
+        },
+        body: JSON.stringify({ title: 'Test Course' })
+      })
+
+      expect(response.status).toBe(403)
+      const data = await response.json()
+      expect(data.error).toContain('Invalid origin')
+    })
+  })
+
+  describe('12. Content Security Policy', () => {
+    test('should enforce CSP headers', async () => {
+      const response = await fetch('/api/courses', {
+        method: 'GET'
+      })
+
+      expect(response.headers.get('Content-Security-Policy')).toBeDefined()
+      expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'self'")
+    })
+
+    test('should prevent inline script execution', async () => {
+      const user = userEvent.setup()
+      
+      const maliciousInput = '<script>alert("XSS")</script>'
+      
+      const input = screen.getByLabelText(/announcement content/i)
+      const submitButton = screen.getByRole('button', { name: /post announcement/i })
+
+      await user.clear(input)
+      await user.type(input, maliciousInput)
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        // Content should be sanitized, not executed
+        expect(screen.queryByText('alert("XSS")')).not.toBeInTheDocument()
+      })
+    })
+
+    test('should restrict external resource loading', async () => {
+      const user = userEvent.setup()
+      
+      const externalImage = 'https://malicious-site.com/image.jpg'
+      
+      const input = screen.getByLabelText(/announcement content/i)
+      const submitButton = screen.getByRole('button', { name: /post announcement/i })
+
+      await user.clear(input)
+      await user.type(input, `<img src="${externalImage}" alt="test">`)
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/external resources not allowed/i)).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('13. Data Encryption', () => {
+    test('should encrypt sensitive data at rest', async () => {
+      // Mock encrypted data storage
+      const sensitiveData = {
+        ssn: '123-45-6789',
+        credit_card: '4111-1111-1111-1111'
+      }
+
+      mockSupabaseClient.from.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [{ id: 'record-1' }],
+          error: null
+        })
+      })
+
+      const response = await fetch('/api/user/sensitive-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer valid-token'
+        },
+        body: JSON.stringify(sensitiveData)
+      })
+
+      expect(response.status).toBe(200)
+      
+      // Verify data was encrypted before storage
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith(
+        expect.stringContaining('encrypted_data')
+      )
+    })
+
+    test('should use HTTPS for all communications', async () => {
+      // Mock non-HTTPS request
+      const response = await fetch('http://localhost:3000/api/courses', {
+        method: 'GET'
+      })
+
+      expect(response.status).toBe(400)
+      const data = await response.json()
+      expect(data.error).toContain('HTTPS required')
+    })
+
+    test('should encrypt data in transit', async () => {
+      // Mock API call and verify encryption
+      const response = await fetch('/api/courses', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer valid-token'
+        }
+      })
+
+      expect(response.status).toBe(200)
+      
+      // Verify response headers indicate encryption
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff')
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY')
+    })
+  })
+
+  describe('14. Audit Logging', () => {
+    test('should log all authentication attempts', async () => {
+      // Mock login attempt
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'user@example.com',
+          password: 'password123'
+        })
+      })
+
+      expect(response.status).toBe(200)
+      
+      // Verify audit log was created
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('audit_logs')
+    })
+
+    test('should log all data access attempts', async () => {
+      // Mock data access
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer valid-token'
+        }
+      })
+
+      expect(response.status).toBe(200)
+      
+      // Verify audit log was created
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('audit_logs')
+    })
+
+    test('should log all administrative actions', async () => {
+      // Mock admin action
+      const response = await fetch('/api/admin/users', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer admin-token'
+        }
+      })
+
+      expect(response.status).toBe(200)
+      
+      // Verify audit log was created
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('audit_logs')
+    })
+
+    test('should prevent audit log tampering', async () => {
+      // Mock attempt to modify audit logs
+      const response = await fetch('/api/admin/audit-logs', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer admin-token'
+        }
+      })
+
+      expect(response.status).toBe(403)
+      const data = await response.json()
+      expect(data.error).toContain('Audit logs cannot be modified')
+    })
+  })
 })

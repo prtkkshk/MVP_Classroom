@@ -122,7 +122,7 @@ export default function MessagesPage() {
 
       if (response.ok) {
         // Filter out approved requests - they should not show in the requests section
-        const filteredRequests = (result.data || []).filter((request: any) => request.status !== 'approved')
+        const filteredRequests = (result.data || []).filter((request: MessageRequest) => request.status !== 'approved')
         setMessageRequests(filteredRequests)
       } else {
         console.error('Error fetching message requests:', result.error)
@@ -258,7 +258,7 @@ export default function MessagesPage() {
       console.log('Users fetched successfully:', users?.length || 0)
 
       // Filter users to only include those with approved message requests
-      const approvedUsers = users.filter((user: any) => {
+      const approvedUsers = users.filter((user: User) => {
         // Check if there's an approved message request between current user and this user
         const hasApprovedRequest = messageRequests.some(request => 
           (request.requester_id === currentUser.id && request.recipient_id === user.id && request.status === 'approved') ||
@@ -268,7 +268,7 @@ export default function MessagesPage() {
       })
 
       // Create chat rooms for approved users only
-      const rooms: ChatRoom[] = await Promise.all(approvedUsers.map(async (user: any) => {
+      const rooms: ChatRoom[] = await Promise.all(approvedUsers.map(async (user: User) => {
         // Fetch the last message for this chat
         let lastMessage = ''
         let lastMessageTime = ''
@@ -285,7 +285,7 @@ export default function MessagesPage() {
             lastMessageTime = lastMsg.created_at
             
             // Count unread messages (messages sent by other user that are not read)
-            unreadCount = result.data.filter((msg: any) => 
+            unreadCount = result.data.filter((msg: ChatMessage) => 
               msg.sender_id === user.id && !msg.is_read
             ).length
           }
@@ -373,7 +373,7 @@ export default function MessagesPage() {
           console.log('Admin notifications fetched:', notifications?.length || 0)
 
           if (!notificationsError && notifications) {
-            const adminMessages = notifications.map((notification: any) => ({
+            const adminMessages = notifications.map((notification: { id: string; message: string; is_read: boolean; created_at: string; title: string }) => ({
               id: notification.id,
               sender_id: 'admin',
               receiver_id: currentUser?.id || '',
@@ -401,10 +401,10 @@ export default function MessagesPage() {
           const result = await response.json()
 
           if (response.ok && result.data) {
-            const enhancedMessages = result.data.map((message: any) => ({
+            const enhancedMessages = result.data.map((message: ChatMessage) => ({
               ...message,
               sender_name: message.sender_id === currentUser?.id ? 'You' : chatRoom.other_user_name,
-              sender_avatar: message.sender_id === currentUser?.id ? (currentUser as any)?.avatar_url : chatRoom.other_user_avatar
+              sender_avatar: message.sender_id === currentUser?.id ? currentUser?.avatar_url : chatRoom.other_user_avatar
             }))
             allMessages.push(...enhancedMessages)
           }
@@ -469,7 +469,7 @@ export default function MessagesPage() {
           is_read: false,
           created_at: new Date().toISOString(),
           sender_name: 'You',
-          sender_avatar: (currentUser as any)?.avatar_url
+          sender_avatar: currentUser?.avatar_url
         }
         setMessages(prev => [...prev, localMessage])
       } else {
@@ -477,7 +477,7 @@ export default function MessagesPage() {
         const enhancedMessage: ChatMessage = {
           ...result.data,
           sender_name: 'You',
-          sender_avatar: (currentUser as any)?.avatar_url
+          sender_avatar: currentUser?.avatar_url
         }
         setMessages(prev => [...prev, enhancedMessage])
       }

@@ -166,7 +166,7 @@ export default function CourseMaterials({ courseId, isProfessor }: CourseMateria
         {isProfessor && (
           <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button data-testid="header-upload-button">
                 <Plus className="h-4 w-4 mr-2" />
                 Upload Material
               </Button>

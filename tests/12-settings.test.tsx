@@ -45,7 +45,7 @@ jest.mock('sonner', () => ({
   },
 }))
 
-describe('Settings Tests', () => {
+describe('Settings Tests - Profile Management & Security', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     // Reset store states
@@ -188,9 +188,42 @@ describe('Settings Tests', () => {
         })
       })
     })
+
+    test('should handle profile update errors gracefully', async () => {
+      const user = userEvent.setup()
+      
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'prof-1',
+            name: 'Professor User',
+            email: 'professor@university.edu'
+          },
+          error: null
+        }),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database connection failed' }
+        })
+      })
+
+      const nameInput = screen.getByLabelText(/full name/i)
+      const saveButton = screen.getByRole('button', { name: /save changes/i })
+
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Updated Name')
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/failed to update profile/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('2. Password Changes', () => {
+  describe('2. Password Changes with Enhanced Security Validation', () => {
     test('should change password with validation', async () => {
       const user = userEvent.setup()
       
@@ -243,19 +276,42 @@ describe('Settings Tests', () => {
       })
     })
 
-    test('should validate password strength', async () => {
+    test('should validate password strength requirements', async () => {
       const user = userEvent.setup()
       
       const newPasswordInput = screen.getByLabelText(/new password/i)
       const confirmPasswordInput = screen.getByLabelText(/confirm new password/i)
       const changePasswordButton = screen.getByRole('button', { name: /change password/i })
 
+      // Test weak password
       await user.type(newPasswordInput, 'weak')
       await user.type(confirmPasswordInput, 'weak')
       await user.click(changePasswordButton)
 
       await waitFor(() => {
         expect(screen.getByText(/password must be at least 8 characters/i)).toBeInTheDocument()
+      })
+
+      // Test password without numbers
+      await user.clear(newPasswordInput)
+      await user.clear(confirmPasswordInput)
+      await user.type(newPasswordInput, 'weakpassword')
+      await user.type(confirmPasswordInput, 'weakpassword')
+      await user.click(changePasswordButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/password must contain at least one number/i)).toBeInTheDocument()
+      })
+
+      // Test password without special characters
+      await user.clear(newPasswordInput)
+      await user.clear(confirmPasswordInput)
+      await user.type(newPasswordInput, 'weakpass123')
+      await user.type(confirmPasswordInput, 'weakpass123')
+      await user.click(changePasswordButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/password must contain at least one special character/i)).toBeInTheDocument()
       })
     })
 
@@ -266,17 +322,59 @@ describe('Settings Tests', () => {
       const confirmPasswordInput = screen.getByLabelText(/confirm new password/i)
       const changePasswordButton = screen.getByRole('button', { name: /change password/i })
 
-      await user.type(newPasswordInput, 'newpass123')
-      await user.type(confirmPasswordInput, 'differentpass123')
+      await user.type(newPasswordInput, 'newpass123!')
+      await user.type(confirmPasswordInput, 'differentpass123!')
       await user.click(changePasswordButton)
 
       await waitFor(() => {
         expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument()
       })
     })
+
+    test('should prevent common weak passwords', async () => {
+      const user = userEvent.setup()
+      
+      const newPasswordInput = screen.getByLabelText(/new password/i)
+      const confirmPasswordInput = screen.getByLabelText(/confirm new password/i)
+      const changePasswordButton = screen.getByRole('button', { name: /change password/i })
+
+      const weakPasswords = ['password123!', '123456789!', 'qwerty123!', 'admin123!']
+      
+      for (const weakPassword of weakPasswords) {
+        await user.clear(newPasswordInput)
+        await user.clear(confirmPasswordInput)
+        await user.type(newPasswordInput, weakPassword)
+        await user.type(confirmPasswordInput, weakPassword)
+        await user.click(changePasswordButton)
+
+        await waitFor(() => {
+          expect(screen.getByText(/password is too common/i)).toBeInTheDocument()
+        })
+      }
+    })
+
+    test('should show password strength indicator', async () => {
+      const user = userEvent.setup()
+      
+      const newPasswordInput = screen.getByLabelText(/new password/i)
+      
+      // Weak password
+      await user.type(newPasswordInput, 'weak')
+      expect(screen.getByText(/weak/i)).toBeInTheDocument()
+      
+      // Medium password
+      await user.clear(newPasswordInput)
+      await user.type(newPasswordInput, 'mediumpass123')
+      expect(screen.getByText(/medium/i)).toBeInTheDocument()
+      
+      // Strong password
+      await user.clear(newPasswordInput)
+      await user.type(newPasswordInput, 'StrongPass123!@#')
+      expect(screen.getByText(/strong/i)).toBeInTheDocument()
+    })
   })
 
-  describe('3. Learning Preferences', () => {
+  describe('3. Learning Preferences with Storage & Retrieval Logic', () => {
     test('should update learning preferences', async () => {
       const user = userEvent.setup()
       
@@ -351,9 +449,69 @@ describe('Settings Tests', () => {
         expect(localStorage.getItem('user_timezone')).toBe('PST')
       })
     })
+
+    test('should retrieve and display saved preferences on load', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'preferences-1',
+            user_id: 'prof-1',
+            preferred_language: 'fr',
+            timezone: 'CET',
+            theme: 'dark',
+            notifications_enabled: true,
+            font_size: 'large',
+            reading_mode: 'night'
+          },
+          error: null
+        })
+      })
+
+      // Re-render component to trigger preference loading
+      render(<div>Preferences loaded</div>)
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from).toHaveBeenCalledWith('user_preferences')
+      })
+    })
+
+    test('should handle preference loading errors gracefully', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Failed to load preferences' }
+        })
+      })
+
+      // Re-render component to trigger preference loading
+      render(<div>Preferences error</div>)
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from).toHaveBeenCalledWith('user_preferences')
+      })
+    })
+
+    test('should validate preference values before saving', async () => {
+      const user = userEvent.setup()
+      
+      const languageSelect = screen.getByLabelText(/preferred language/i)
+      const saveButton = screen.getByRole('button', { name: /save preferences/i })
+
+      // Try to save with invalid language
+      await user.selectOptions(languageSelect, 'invalid-language')
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/invalid language selection/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('4. Notification Preferences', () => {
+  describe('4. Notification Preferences with Real-time Updates', () => {
     test('should update notification preferences', async () => {
       const user = userEvent.setup()
       
@@ -423,9 +581,63 @@ describe('Settings Tests', () => {
         expect(screen.getByText(/test notification sent/i)).toBeInTheDocument()
       })
     })
+
+    test('should sync notification preferences across devices', async () => {
+      const user = userEvent.setup()
+      
+      // Mock real-time subscription
+      const mockChannel = {
+        on: jest.fn(),
+        subscribe: jest.fn(),
+        unsubscribe: jest.fn()
+      }
+      
+      mockSupabaseClient.channel.mockReturnValue(mockChannel)
+
+      const emailToggle = screen.getByLabelText(/email notifications/i)
+      await user.click(emailToggle)
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.channel).toHaveBeenCalledWith('notification_preferences')
+        expect(mockChannel.subscribe).toHaveBeenCalled()
+      })
+    })
+
+    test('should handle notification preference conflicts', async () => {
+      const user = userEvent.setup()
+      
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'notification-preferences-1',
+            user_id: 'prof-1',
+            email_notifications: true,
+            push_notifications: true
+          },
+          error: null
+        }),
+        upsert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Conflicting preferences detected' }
+        })
+      })
+
+      const emailToggle = screen.getByLabelText(/email notifications/i)
+      const saveButton = screen.getByRole('button', { name: /save notification preferences/i })
+
+      await user.click(emailToggle)
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/conflicting preferences detected/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('5. Privacy Settings', () => {
+  describe('5. Privacy Settings with Enhanced Security', () => {
     test('should update privacy settings', async () => {
       const user = userEvent.setup()
       
@@ -478,9 +690,47 @@ describe('Settings Tests', () => {
         })
       })
     })
+
+    test('should enforce privacy settings in real-time', async () => {
+      const user = userEvent.setup()
+      
+      const profileVisibilitySelect = screen.getByLabelText(/profile visibility/i)
+      await user.selectOptions(profileVisibilitySelect, 'private')
+
+      // Mock real-time privacy update
+      const mockChannel = {
+        on: jest.fn(),
+        subscribe: jest.fn(),
+        unsubscribe: jest.fn()
+      }
+      
+      mockSupabaseClient.channel.mockReturnValue(mockChannel)
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.channel).toHaveBeenCalledWith('privacy_settings')
+        expect(mockChannel.subscribe).toHaveBeenCalled()
+      })
+    })
+
+    test('should validate privacy setting combinations', async () => {
+      const user = userEvent.setup()
+      
+      const profileVisibilitySelect = screen.getByLabelText(/profile visibility/i)
+      const showEmailToggle = screen.getByLabelText(/show email/i)
+      const saveButton = screen.getByRole('button', { name: /save privacy settings/i })
+
+      // Try to set private profile but show email
+      await user.selectOptions(profileVisibilitySelect, 'private')
+      await user.click(showEmailToggle) // This should be disabled for private profiles
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/private profiles cannot show email/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('6. Account Management', () => {
+  describe('6. Account Management with Enhanced Security', () => {
     test('should export user data', async () => {
       const user = userEvent.setup()
       
@@ -560,6 +810,51 @@ describe('Settings Tests', () => {
         expect(screen.getByText(/please type 'delete' to confirm/i)).toBeInTheDocument()
       })
     })
+
+    test('should require password confirmation for account deletion', async () => {
+      const user = userEvent.setup()
+      
+      const deleteAccountButton = screen.getByRole('button', { name: /delete account/i })
+      await user.click(deleteAccountButton)
+
+      const passwordInput = screen.getByLabelText(/enter your password/i)
+      const confirmInput = screen.getByLabelText(/type delete to confirm/i)
+      const confirmButton = screen.getByRole('button', { name: /confirm deletion/i })
+
+      await user.type(passwordInput, 'wrongpassword')
+      await user.type(confirmInput, 'delete')
+      await user.click(confirmButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/incorrect password/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should handle account deletion errors gracefully', async () => {
+      const user = userEvent.setup()
+      
+      mockSupabaseClient.auth = {
+        admin: {
+          deleteUser: jest.fn().mockResolvedValue({
+            data: null,
+            error: { message: 'Cannot delete account with active courses' }
+          })
+        }
+      }
+
+      const deleteAccountButton = screen.getByRole('button', { name: /delete account/i })
+      await user.click(deleteAccountButton)
+
+      const confirmInput = screen.getByLabelText(/type delete to confirm/i)
+      const confirmButton = screen.getByRole('button', { name: /confirm deletion/i })
+
+      await user.type(confirmInput, 'delete')
+      await user.click(confirmButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/cannot delete account with active courses/i)).toBeInTheDocument()
+      })
+    })
   })
 
   describe('7. Settings Validation and Error Handling', () => {
@@ -615,6 +910,112 @@ describe('Settings Tests', () => {
       await waitFor(() => {
         expect(saveButton).toBeDisabled()
         expect(screen.getByText(/saving/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should handle concurrent settings updates', async () => {
+      const user = userEvent.setup()
+      
+      // Mock optimistic locking
+      mockSupabaseClient.from.mockReturnValue({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Settings were modified by another user' }
+        })
+      })
+
+      const saveButton = screen.getByRole('button', { name: /save changes/i })
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/settings were modified by another user/i)).toBeInTheDocument()
+        expect(screen.getByText(/please refresh and try again/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should validate settings before saving to prevent invalid states', async () => {
+      const user = userEvent.setup()
+      
+      const themeSelect = screen.getByLabelText(/theme/i)
+      const languageSelect = screen.getByLabelText(/preferred language/i)
+      const saveButton = screen.getByRole('button', { name: /save preferences/i })
+
+      // Try to save with conflicting theme and language
+      await user.selectOptions(themeSelect, 'dark')
+      await user.selectOptions(languageSelect, 'ar') // Arabic - RTL language
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/dark theme is not supported for rtl languages/i)).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('8. Security and Access Control Tests', () => {
+    test('should prevent unauthorized access to settings', async () => {
+      // Mock unauthenticated user
+      mockAuthStore.setState({
+        user: null,
+        isAuthenticated: false
+      })
+
+      // Re-render component
+      render(<div>Unauthorized access</div>)
+
+      await waitFor(() => {
+        expect(screen.getByText(/access denied/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should validate user permissions for sensitive operations', async () => {
+      const user = userEvent.setup()
+      
+      // Mock user without admin privileges trying to access admin settings
+      mockAuthStore.setState({
+        user: {
+          id: 'student-1',
+          role: 'student'
+        },
+        isAuthenticated: true
+      })
+
+      const adminSettingsButton = screen.getByRole('button', { name: /admin settings/i })
+      await user.click(adminSettingsButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/insufficient permissions/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should sanitize user inputs to prevent XSS', async () => {
+      const user = userEvent.setup()
+      
+      const bioInput = screen.getByLabelText(/bio/i)
+      const saveButton = screen.getByRole('button', { name: /save changes/i })
+
+      const maliciousInput = '<script>alert("xss")</script>'
+      await user.type(bioInput, maliciousInput)
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/invalid input detected/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should rate limit settings updates', async () => {
+      const user = userEvent.setup()
+      
+      const saveButton = screen.getByRole('button', { name: /save changes/i })
+
+      // Try to save multiple times rapidly
+      for (let i = 0; i < 5; i++) {
+        await user.click(saveButton)
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText(/too many requests/i)).toBeInTheDocument()
+        expect(saveButton).toBeDisabled()
       })
     })
   })

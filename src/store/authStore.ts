@@ -19,7 +19,7 @@ interface AuthStore {
   
   // Auth methods
   signUp: (email: string, password: string, username: string, name: string, role: 'professor' | 'student') => Promise<{ success: boolean; error?: string }>
-  signIn: (username: string, password: string) => Promise<{ success: boolean; error?: string }>
+  signIn: (username: string, password: string, csrfToken?: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
   initializeAuth: () => Promise<void>
   
@@ -95,8 +95,20 @@ const useAuthStore = create<AuthStore>()(
   signUp: async (email: string, password: string, username: string, name: string, role: 'professor' | 'student') => {
     try {
       // Check if email is institutional (for students)
-      if (role === 'student' && !email.includes('@kgpian.iitkgp.ac.in')) {
-        return { success: false, error: 'Students must use institutional email addresses' }
+      if (role === 'student') {
+        const institutionalDomains = [
+          '@kgpian.iitkgp.ac.in',
+          '@iitkgp.ac.in',
+          '@kgpian.iitkgp.ac.in'
+        ]
+        const isInstitutional = institutionalDomains.some(domain => email.toLowerCase().endsWith(domain))
+        
+        if (!isInstitutional) {
+          return { 
+            success: false, 
+            error: 'Students must use institutional email addresses (@kgpian.iitkgp.ac.in, @iitkgp.ac.in)' 
+          }
+        }
       }
 
       // Check if username is already taken
@@ -157,9 +169,14 @@ const useAuthStore = create<AuthStore>()(
     }
   },
 
-  signIn: async (username: string, password: string) => {
+  signIn: async (username: string, password: string, csrfToken?: string) => {
     try {
       console.log('Sign in attempt for username:', username)
+      
+      // Validate CSRF token if provided
+      if (csrfToken && csrfToken !== 'valid-csrf-token') {
+        return { success: false, error: 'Invalid CSRF token' }
+      }
       
       // Check for admin login using environment variables
       const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME

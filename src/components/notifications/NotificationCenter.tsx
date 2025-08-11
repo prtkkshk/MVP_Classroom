@@ -90,14 +90,14 @@ export default function NotificationCenter() {
       // Transform to local format
       const realNotifications: Notification[] = storeNotifications.map(notification => ({
         id: notification.id,
-        type: notification.type as any,
+        type: notification.type as 'enrollment' | 'announcement' | 'assignment' | 'live_session' | 'doubt' | 'poll' | 'system',
         title: notification.title,
         message: notification.message,
         courseId: notification.course_id,
         courseName: notification.course_name,
         isRead: notification.is_read,
         createdAt: new Date(notification.created_at),
-        priority: notification.priority as any,
+        priority: notification.priority as 'low' | 'normal' | 'high' | 'urgent',
         actionUrl: notification.action_url
       }))
       
@@ -318,7 +318,7 @@ export default function NotificationCenter() {
                     key={tab.key}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setActiveTab(tab.key as any)}
+                    onClick={() => setActiveTab(tab.key as 'all' | 'unread' | 'important')}
                     className={`flex-1 text-xs px-3 py-1 rounded-md transition-colors ${
                       activeTab === tab.key
                         ? 'bg-blue-100 text-blue-700'

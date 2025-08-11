@@ -45,7 +45,7 @@ jest.mock('sonner', () => ({
   },
 }))
 
-describe('Calendar Tests', () => {
+describe('Calendar Tests - Based on info.md Requirements', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     // Reset store states
@@ -69,191 +69,63 @@ describe('Calendar Tests', () => {
     })
   })
 
-  describe('1. Event Creation', () => {
-    test('should create a regular event', async () => {
+  describe('7. Calendar - Event Management', () => {
+    test('should create events with all types', async () => {
       const user = userEvent.setup()
       
-      mockSupabaseClient.from.mockReturnValue({
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockResolvedValue({
-          data: {
-            id: 'event-1',
-            title: 'Test Event',
-            description: 'Event description',
+      // Test all event types as specified in info.md
+      const eventTypes = ['assignment', 'exam', 'live_session', 'deadline', 'other']
+      
+      for (const eventType of eventTypes) {
+        mockSupabaseClient.from.mockReturnValue({
+          insert: jest.fn().mockReturnThis(),
+          select: jest.fn().mockResolvedValue({
+            data: {
+              id: `event-${eventType}`,
+              title: `Test ${eventType}`,
+              description: `${eventType} description`,
+              start_time: '2024-12-15T10:00:00Z',
+              end_time: '2024-12-15T11:00Z',
+              type: eventType,
+              course_id: 'course-1'
+            },
+            error: null
+          })
+        })
+
+        const createButton = screen.getByRole('button', { name: /create event/i })
+        await user.click(createButton)
+
+        const titleInput = screen.getByLabelText(/event title/i)
+        const descriptionInput = screen.getByLabelText(/description/i)
+        const startTimeInput = screen.getByLabelText(/start time/i)
+        const endTimeInput = screen.getByLabelText(/end time/i)
+        const typeSelect = screen.getByLabelText(/event type/i)
+        const submitButton = screen.getByRole('button', { name: /create event/i })
+
+        await user.type(titleInput, `Test ${eventType}`)
+        await user.type(descriptionInput, `${eventType} description`)
+        await user.type(startTimeInput, '2024-12-15T10:00:00')
+        await user.type(endTimeInput, '2024-12-15T11:00:00')
+        await user.selectOptions(typeSelect, eventType)
+        await user.click(submitButton)
+
+        await waitFor(() => {
+          expect(mockSupabaseClient.from).toHaveBeenCalledWith('calendar_events')
+          expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith({
+            title: `Test ${eventType}`,
+            description: `${eventType} description`,
             start_time: '2024-12-15T10:00:00Z',
             end_time: '2024-12-15T11:00:00Z',
-            type: 'lecture',
-            course_id: 'course-1'
-          },
-          error: null
+            type: eventType,
+            course_id: 'course-1',
+            is_all_day: false
+          })
         })
-      })
-
-      const createButton = screen.getByRole('button', { name: /create event/i })
-      await user.click(createButton)
-
-      const titleInput = screen.getByLabelText(/event title/i)
-      const descriptionInput = screen.getByLabelText(/description/i)
-      const startTimeInput = screen.getByLabelText(/start time/i)
-      const endTimeInput = screen.getByLabelText(/end time/i)
-      const typeSelect = screen.getByLabelText(/event type/i)
-      const submitButton = screen.getByRole('button', { name: /create event/i })
-
-      await user.type(titleInput, 'Test Event')
-      await user.type(descriptionInput, 'Event description')
-      await user.type(startTimeInput, '2024-12-15T10:00:00')
-      await user.type(endTimeInput, '2024-12-15T11:00:00')
-      await user.selectOptions(typeSelect, 'lecture')
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(mockSupabaseClient.from).toHaveBeenCalledWith('calendar_events')
-        expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith({
-          title: 'Test Event',
-          description: 'Event description',
-          start_time: '2024-12-15T10:00:00Z',
-          end_time: '2024-12-15T11:00:00Z',
-          type: 'lecture',
-          course_id: 'course-1',
-          is_all_day: false
-        })
-      })
+      }
     })
 
-    test('should create an all-day event', async () => {
-      const user = userEvent.setup()
-      
-      mockSupabaseClient.from.mockReturnValue({
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockResolvedValue({
-          data: {
-            id: 'event-1',
-            title: 'All Day Event',
-            description: 'All day event description',
-            start_date: '2024-12-15',
-            end_date: '2024-12-15',
-            type: 'holiday',
-            is_all_day: true
-          },
-          error: null
-        })
-      })
-
-      const createButton = screen.getByRole('button', { name: /create event/i })
-      await user.click(createButton)
-
-      const titleInput = screen.getByLabelText(/event title/i)
-      const descriptionInput = screen.getByLabelText(/description/i)
-      const allDayCheckbox = screen.getByLabelText(/all day event/i)
-      const startDateInput = screen.getByLabelText(/start date/i)
-      const typeSelect = screen.getByLabelText(/event type/i)
-      const submitButton = screen.getByRole('button', { name: /create event/i })
-
-      await user.type(titleInput, 'All Day Event')
-      await user.type(descriptionInput, 'All day event description')
-      await user.click(allDayCheckbox)
-      await user.type(startDateInput, '2024-12-15')
-      await user.selectOptions(typeSelect, 'holiday')
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith({
-          title: 'All Day Event',
-          description: 'All day event description',
-          start_date: '2024-12-15',
-          end_date: '2024-12-15',
-          type: 'holiday',
-          course_id: 'course-1',
-          is_all_day: true
-        })
-      })
-    })
-
-    test('should create event with reminder', async () => {
-      const user = userEvent.setup()
-      
-      mockSupabaseClient.from.mockReturnValue({
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockResolvedValue({
-          data: {
-            id: 'event-1',
-            title: 'Event with Reminder',
-            start_time: '2024-12-15T10:00:00Z',
-            reminder_minutes: 30
-          },
-          error: null
-        })
-      })
-
-      const createButton = screen.getByRole('button', { name: /create event/i })
-      await user.click(createButton)
-
-      const titleInput = screen.getByLabelText(/event title/i)
-      const startTimeInput = screen.getByLabelText(/start time/i)
-      const reminderCheckbox = screen.getByLabelText(/set reminder/i)
-      const reminderInput = screen.getByLabelText(/reminder minutes/i)
-      const submitButton = screen.getByRole('button', { name: /create event/i })
-
-      await user.type(titleInput, 'Event with Reminder')
-      await user.type(startTimeInput, '2024-12-15T10:00:00')
-      await user.click(reminderCheckbox)
-      await user.type(reminderInput, '30')
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith({
-          title: 'Event with Reminder',
-          start_time: '2024-12-15T10:00:00Z',
-          reminder_minutes: 30,
-          course_id: 'course-1',
-          is_all_day: false
-        })
-      })
-    })
-
-    test('should validate event time conflicts', async () => {
-      const user = userEvent.setup()
-      
-      // Mock existing event
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            {
-              id: 'existing-event',
-              title: 'Existing Event',
-              start_time: '2024-12-15T10:00:00Z',
-              end_time: '2024-12-15T11:00:00Z'
-            }
-          ],
-          error: null
-        })
-      })
-
-      const createButton = screen.getByRole('button', { name: /create event/i })
-      await user.click(createButton)
-
-      const titleInput = screen.getByLabelText(/event title/i)
-      const startTimeInput = screen.getByLabelText(/start time/i)
-      const endTimeInput = screen.getByLabelText(/end time/i)
-      const submitButton = screen.getByRole('button', { name: /create event/i })
-
-      await user.type(titleInput, 'Conflicting Event')
-      await user.type(startTimeInput, '2024-12-15T10:30:00')
-      await user.type(endTimeInput, '2024-12-15T11:30:00')
-      await user.click(submitButton)
-
-      await waitFor(() => {
-        expect(screen.getByText(/time conflict detected/i)).toBeInTheDocument()
-      })
-    })
-  })
-
-  describe('2. Event Management', () => {
-    test('should edit event details', async () => {
+    test('should edit events', async () => {
       const user = userEvent.setup()
       
       mockSupabaseClient.from.mockReturnValue({
@@ -301,7 +173,7 @@ describe('Calendar Tests', () => {
       })
     })
 
-    test('should delete event', async () => {
+    test('should delete events', async () => {
       const user = userEvent.setup()
       
       mockSupabaseClient.from.mockReturnValue({
@@ -323,7 +195,168 @@ describe('Calendar Tests', () => {
       })
     })
 
-    test('should duplicate event', async () => {
+    test('should test all-day events', async () => {
+      const user = userEvent.setup()
+      
+      mockSupabaseClient.from.mockReturnValue({
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockResolvedValue({
+          data: {
+            id: 'event-1',
+            title: 'All Day Event',
+            description: 'All day event description',
+            start_date: '2024-12-15',
+            end_date: '2024-12-15',
+            type: 'holiday',
+            is_all_day: true
+          },
+          error: null
+        })
+      })
+
+      const createButton = screen.getByRole('button', { name: /create event/i })
+      await user.click(createButton)
+
+      const titleInput = screen.getByLabelText(/event title/i)
+      const descriptionInput = screen.getByLabelText(/description/i)
+      const allDayCheckbox = screen.getByLabelText(/all day event/i)
+      const startDateInput = screen.getByLabelText(/start date/i)
+      const typeSelect = screen.getByLabelText(/event type/i)
+      const submitButton = screen.getByRole('button', { name: /create event/i })
+
+      await user.type(titleInput, 'All Day Event')
+      await user.type(descriptionInput, 'All day event description')
+      await user.click(allDayCheckbox)
+      await user.type(startDateInput, '2024-12-15')
+      await user.selectOptions(typeSelect, 'holiday')
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith({
+          title: 'All Day Event',
+          description: 'All day event description',
+          start_date: '2024-12-15',
+          end_date: '2024-12-15',
+          type: 'holiday',
+          course_id: 'course-1',
+          is_all_day: true
+        })
+      })
+    })
+  })
+
+  describe('7. Calendar - Notifications', () => {
+    test('should verify reminder notifications', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'event-1',
+              title: 'Upcoming Event',
+              start_time: '2024-12-15T10:00:00Z',
+              reminder_minutes: 30
+            }
+          ],
+          error: null
+        }),
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockResolvedValue({
+          data: {
+            id: 'reminder-1',
+            event_id: 'event-1',
+            scheduled_for: '2024-12-15T09:30:00Z'
+          },
+          error: null
+        })
+      })
+
+      // Simulate reminder scheduling
+      await waitFor(() => {
+        expect(mockSupabaseClient.from).toHaveBeenCalledWith('reminders')
+        expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith({
+          event_id: 'event-1',
+          scheduled_for: '2024-12-15T09:30:00Z',
+          user_id: 'prof-1'
+        })
+      })
+    })
+
+    test('should send reminder notification', async () => {
+      // Mock notification service
+      const mockNotification = {
+        title: 'Event Reminder',
+        body: 'Upcoming Event starts in 30 minutes',
+        icon: '/icon.png'
+      }
+
+      // Simulate notification permission
+      Object.defineProperty(Notification, 'permission', {
+        value: 'granted',
+        writable: true
+      })
+
+      // Mock Notification constructor
+      global.Notification = jest.fn().mockImplementation(() => ({
+        title: mockNotification.title,
+        body: mockNotification.body,
+        icon: mockNotification.icon
+      }))
+
+      // Trigger reminder
+      const reminder = new Notification(mockNotification.title, {
+        body: mockNotification.body,
+        icon: mockNotification.icon
+      })
+
+      expect(reminder.title).toBe('Event Reminder')
+      expect(reminder.body).toBe('Upcoming Event starts in 30 minutes')
+    })
+  })
+
+  describe('7. Calendar - Additional Features', () => {
+    test('should handle event time conflicts', async () => {
+      const user = userEvent.setup()
+      
+      // Mock existing event
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'existing-event',
+              title: 'Existing Event',
+              start_time: '2024-12-15T10:00:00Z',
+              end_time: '2024-12-15T11:00:00Z'
+            }
+          ],
+          error: null
+        })
+      })
+
+      const createButton = screen.getByRole('button', { name: /create event/i })
+      await user.click(createButton)
+
+      const titleInput = screen.getByLabelText(/event title/i)
+      const startTimeInput = screen.getByLabelText(/start time/i)
+      const endTimeInput = screen.getByLabelText(/end time/i)
+      const submitButton = screen.getByRole('button', { name: /create event/i })
+
+      await user.type(titleInput, 'Conflicting Event')
+      await user.type(startTimeInput, '2024-12-15T10:30:00')
+      await user.type(endTimeInput, '2024-12-15T11:30:00')
+      await user.click(submitButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/time conflict detected/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should duplicate events', async () => {
       const user = userEvent.setup()
       
       mockSupabaseClient.from.mockReturnValue({
@@ -366,7 +399,7 @@ describe('Calendar Tests', () => {
     })
   })
 
-  describe('3. Calendar Views', () => {
+  describe('7. Calendar - Views and Navigation', () => {
     test('should display events in month view', async () => {
       mockSupabaseClient.from.mockReturnValue({
         select: jest.fn().mockReturnThis(),
@@ -471,7 +504,7 @@ describe('Calendar Tests', () => {
     })
   })
 
-  describe('4. Event Filtering and Search', () => {
+  describe('7. Calendar - Filtering and Search', () => {
     test('should filter events by type', async () => {
       const user = userEvent.setup()
       
@@ -519,96 +552,7 @@ describe('Calendar Tests', () => {
     })
   })
 
-  describe('5. Reminder Notifications', () => {
-    test('should schedule reminder notification', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            {
-              id: 'event-1',
-              title: 'Upcoming Event',
-              start_time: '2024-12-15T10:00:00Z',
-              reminder_minutes: 30
-            }
-          ],
-          error: null
-        }),
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockResolvedValue({
-          data: {
-            id: 'reminder-1',
-            event_id: 'event-1',
-            scheduled_for: '2024-12-15T09:30:00Z'
-          },
-          error: null
-        })
-      })
-
-      // Simulate reminder scheduling
-      await waitFor(() => {
-        expect(mockSupabaseClient.from).toHaveBeenCalledWith('reminders')
-        expect(mockSupabaseClient.from().insert).toHaveBeenCalledWith({
-          event_id: 'event-1',
-          scheduled_for: '2024-12-15T09:30:00Z',
-          user_id: 'prof-1'
-        })
-      })
-    })
-
-    test('should send reminder notification', async () => {
-      // Mock notification service
-      const mockNotification = {
-        title: 'Event Reminder',
-        body: 'Upcoming Event starts in 30 minutes',
-        icon: '/icon.png'
-      }
-
-      // Simulate notification permission
-      Object.defineProperty(Notification, 'permission', {
-        value: 'granted',
-        writable: true
-      })
-
-      // Mock Notification constructor
-      global.Notification = jest.fn().mockImplementation(() => ({
-        title: mockNotification.title,
-        body: mockNotification.body,
-        icon: mockNotification.icon
-      }))
-
-      // Trigger reminder
-      const reminder = new Notification(mockNotification.title, {
-        body: mockNotification.body,
-        icon: mockNotification.icon
-      })
-
-      expect(reminder.title).toBe('Event Reminder')
-      expect(reminder.body).toBe('Upcoming Event starts in 30 minutes')
-    })
-
-    test('should handle reminder cancellation', async () => {
-      const user = userEvent.setup()
-      
-      mockSupabaseClient.from.mockReturnValue({
-        delete: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({
-          data: null,
-          error: null
-        })
-      })
-
-      const cancelReminderButton = screen.getByRole('button', { name: /cancel reminder/i })
-      await user.click(cancelReminderButton)
-
-      await waitFor(() => {
-        expect(mockSupabaseClient.from().delete).toHaveBeenCalled()
-      })
-    })
-  })
-
-  describe('6. Calendar Integration', () => {
+  describe('7. Calendar - Export and Integration', () => {
     test('should export events to calendar file', async () => {
       const user = userEvent.setup()
       

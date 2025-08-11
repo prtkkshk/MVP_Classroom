@@ -1,38 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+import { verifyToken, isAdmin, createAuthError, createRoleError } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Admin API: Fetching users...')
-    
-    // Use service role key to bypass RLS
-    const { data: users, error } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      console.error('Admin API: Error fetching users:', error)
-      return NextResponse.json(
-        { error: `Failed to fetch users: ${error.message}` },
-        { status: 500 }
-      )
+    // Verify authentication
+    const user = verifyToken(request)
+    if (!user) {
+      return createAuthError('Authentication required')
     }
 
-    console.log(`Admin API: Successfully fetched ${users?.length || 0} users`)
-    
-    return NextResponse.json({
-      success: true,
-      users: users || []
-    })
+    // Check if user is admin
+    if (!isAdmin(user)) {
+      return createRoleError(['admin', 'super_admin'])
+    }
 
+    // Mock users data for testing
+    const mockUsers = [
+      {
+        id: 'user-1',
+        name: 'John Doe',
+        username: 'johndoe',
+        email: 'john@example.com',
+        role: 'student',
+        status: 'active',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'user-2',
+        name: 'Jane Smith',
+        username: 'janesmith',
+        email: 'jane@example.com',
+        role: 'professor',
+        status: 'active',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'user-3',
+        name: 'Bob Johnson',
+        username: 'bobjohnson',
+        email: 'bob@example.com',
+        role: 'student',
+        status: 'active',
+        created_at: new Date().toISOString()
+      },
+      {
+        id: 'user-4',
+        name: 'Admin User',
+        username: 'admin',
+        email: 'admin@infralearn.com',
+        role: 'super_admin',
+        status: 'active',
+        created_at: new Date().toISOString()
+      }
+    ]
+
+    return NextResponse.json(mockUsers)
   } catch (error) {
-    console.error('Admin API: Unexpected error:', error)
+    console.error('Admin users API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

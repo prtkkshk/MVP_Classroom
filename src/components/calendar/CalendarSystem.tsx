@@ -308,7 +308,7 @@ export default function CalendarSystem() {
     setEditingEvent(event)
     setEditTitle(event.title)
     setEditDescription(event.description || '')
-    setEditEventType(event.event_type as any)
+    setEditEventType(event.event_type as 'assignment' | 'exam' | 'live_session' | 'deadline' | 'other')
     setEditStartDate(event.start_date.split('T')[0])
     setEditEndDate(event.end_date ? event.end_date.split('T')[0] : '')
     setEditAllDay(event.all_day)

@@ -228,9 +228,9 @@ export default function AdminMessagesPage() {
           ...message,
           message_type: message.message_type as 'text' | 'image' | 'file',
           sender_name: message.sender_id === currentUser?.id ? (currentUser?.name || 'Admin') : chatRoom.other_user_name,
-          sender_avatar: message.sender_id === currentUser?.id ? (currentUser as any)?.avatar_url : chatRoom.other_user_avatar,
+          sender_avatar: message.sender_id === currentUser?.id ? currentUser?.avatar_url : chatRoom.other_user_avatar,
           receiver_name: message.receiver_id === currentUser?.id ? (currentUser?.name || 'Admin') : chatRoom.other_user_name,
-          receiver_avatar: message.receiver_id === currentUser?.id ? (currentUser as any)?.avatar_url : chatRoom.other_user_avatar
+          receiver_avatar: message.receiver_id === currentUser?.id ? currentUser?.avatar_url : chatRoom.other_user_avatar
         }))
           allMessages.push(...enhancedChatMessages)
         }
@@ -246,7 +246,7 @@ export default function AdminMessagesPage() {
           is_read: true,
           created_at: new Date().toISOString(),
           sender_name: currentUser?.name || 'Admin',
-          sender_avatar: (currentUser as any)?.avatar_url,
+          sender_avatar: currentUser?.avatar_url,
           receiver_name: chatRoom.other_user_name,
           receiver_avatar: chatRoom.other_user_avatar,
           is_admin_message: true,
@@ -294,7 +294,7 @@ export default function AdminMessagesPage() {
         is_read: false,
         created_at: new Date().toISOString(),
         sender_name: currentUser?.name || 'Admin',
-        sender_avatar: (currentUser as any)?.avatar_url,
+        sender_avatar: currentUser?.avatar_url,
         receiver_name: selectedChat.other_user_name,
         receiver_avatar: selectedChat.other_user_avatar
       }

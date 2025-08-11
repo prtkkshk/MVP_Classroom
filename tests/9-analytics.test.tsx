@@ -53,6 +53,28 @@ jest.mock('recharts', () => ({
   Cell: () => <div data-testid="cell" />,
 }))
 
+// Helper function to create comprehensive mock query builders
+const createMockQueryBuilder = (data: any) => ({
+  select: jest.fn().mockReturnThis(),
+  insert: jest.fn().mockReturnThis(),
+  update: jest.fn().mockReturnThis(),
+  delete: jest.fn().mockReturnThis(),
+  eq: jest.fn().mockReturnThis(),
+  neq: jest.fn().mockReturnThis(),
+  gt: jest.fn().mockReturnThis(),
+  lt: jest.fn().mockReturnThis(),
+  gte: jest.fn().mockReturnThis(),
+  lte: jest.fn().mockReturnThis(),
+  like: jest.fn().mockReturnThis(),
+  ilike: jest.fn().mockReturnThis(),
+  in: jest.fn().mockReturnThis(),
+  order: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
+  range: jest.fn().mockReturnThis(),
+  single: jest.fn().mockReturnThis(),
+  then: jest.fn().mockResolvedValue({ data, error: null })
+})
+
 describe('Analytics Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -77,22 +99,16 @@ describe('Analytics Tests', () => {
     })
   })
 
-  describe('1. Data Counts and Statistics', () => {
+  describe('1. Data Accuracy Tests', () => {
     test('should display accurate student count', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { id: 'student-1', name: 'John Doe' },
-            { id: 'student-2', name: 'Jane Smith' },
-            { id: 'student-3', name: 'Bob Johnson' },
-            { id: 'student-4', name: 'Alice Brown' },
-            { id: 'student-5', name: 'Charlie Wilson' }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'student-1', name: 'John Doe' },
+        { id: 'student-2', name: 'Jane Smith' },
+        { id: 'student-3', name: 'Bob Johnson' },
+        { id: 'student-4', name: 'Alice Brown' },
+        { id: 'student-5', name: 'Charlie Wilson' }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByText(/5 students/i)).toBeInTheDocument()
@@ -100,18 +116,12 @@ describe('Analytics Tests', () => {
     })
 
     test('should display accurate course count', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { id: 'course-1', title: 'Course 1' },
-            { id: 'course-2', title: 'Course 2' },
-            { id: 'course-3', title: 'Course 3' }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'course-1', title: 'Course 1' },
+        { id: 'course-2', title: 'Course 2' },
+        { id: 'course-3', title: 'Course 3' }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByText(/3 courses/i)).toBeInTheDocument()
@@ -119,22 +129,16 @@ describe('Analytics Tests', () => {
     })
 
     test('should display accurate doubt count', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { id: 'doubt-1', content: 'Doubt 1' },
-            { id: 'doubt-2', content: 'Doubt 2' },
-            { id: 'doubt-3', content: 'Doubt 3' },
-            { id: 'doubt-4', content: 'Doubt 4' },
-            { id: 'doubt-5', content: 'Doubt 5' },
-            { id: 'doubt-6', content: 'Doubt 6' },
-            { id: 'doubt-7', content: 'Doubt 7' }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'doubt-1', content: 'Doubt 1' },
+        { id: 'doubt-2', content: 'Doubt 2' },
+        { id: 'doubt-3', content: 'Doubt 3' },
+        { id: 'doubt-4', content: 'Doubt 4' },
+        { id: 'doubt-5', content: 'Doubt 5' },
+        { id: 'doubt-6', content: 'Doubt 6' },
+        { id: 'doubt-7', content: 'Doubt 7' }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByText(/7 doubts/i)).toBeInTheDocument()
@@ -142,19 +146,13 @@ describe('Analytics Tests', () => {
     })
 
     test('should display accurate assignment count', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { id: 'assignment-1', title: 'Assignment 1' },
-            { id: 'assignment-2', title: 'Assignment 2' },
-            { id: 'assignment-3', title: 'Assignment 3' },
-            { id: 'assignment-4', title: 'Assignment 4' }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'assignment-1', title: 'Assignment 1' },
+        { id: 'assignment-2', title: 'Assignment 2' },
+        { id: 'assignment-3', title: 'Assignment 3' },
+        { id: 'assignment-4', title: 'Assignment 4' }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByText(/4 assignments/i)).toBeInTheDocument()
@@ -162,48 +160,75 @@ describe('Analytics Tests', () => {
     })
 
     test('should display accurate material count', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { id: 'material-1', title: 'Material 1' },
-            { id: 'material-2', title: 'Material 2' },
-            { id: 'material-3', title: 'Material 3' },
-            { id: 'material-4', title: 'Material 4' },
-            { id: 'material-5', title: 'Material 5' },
-            { id: 'material-6', title: 'Material 6' },
-            { id: 'material-7', title: 'Material 7' },
-            { id: 'material-8', title: 'Material 8' }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'material-1', title: 'Material 1' },
+        { id: 'material-2', title: 'Material 2' },
+        { id: 'material-3', title: 'Material 3' },
+        { id: 'material-4', title: 'Material 4' },
+        { id: 'material-5', title: 'Material 5' },
+        { id: 'material-6', title: 'Material 6' },
+        { id: 'material-7', title: 'Material 7' },
+        { id: 'material-8', title: 'Material 8' }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByText(/8 materials/i)).toBeInTheDocument()
       })
     })
+
+    test('should display accurate announcement count', async () => {
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'announcement-1', title: 'Announcement 1', priority: 'high' },
+        { id: 'announcement-2', title: 'Announcement 2', priority: 'medium' },
+        { id: 'announcement-3', title: 'Announcement 3', priority: 'low' }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
+
+      await waitFor(() => {
+        expect(screen.getByText(/3 announcements/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should display accurate live session count', async () => {
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'session-1', title: 'Session 1', status: 'active' },
+        { id: 'session-2', title: 'Session 2', status: 'completed' },
+        { id: 'session-3', title: 'Session 3', status: 'scheduled' }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
+
+      await waitFor(() => {
+        expect(screen.getByText(/3 live sessions/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should validate data accuracy for mixed content types', async () => {
+      const mockQueryBuilder = createMockQueryBuilder([
+        { id: 'item-1', type: 'pdf', size: 1024, downloads: 15 },
+        { id: 'item-2', type: 'video', size: 51200, views: 45 },
+        { id: 'item-3', type: 'document', size: 256, edits: 8 }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 pdf files/i)).toBeInTheDocument()
+        expect(screen.getByText(/1 video files/i)).toBeInTheDocument()
+        expect(screen.getByText(/1 document files/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('2. Chart Data Accuracy', () => {
+  describe('2. Chart Data Accuracy Tests', () => {
     test('should display accurate enrollment trends chart', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        order: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { date: '2024-01-01', enrollments: 5 },
-            { date: '2024-01-02', enrollments: 8 },
-            { date: '2024-01-03', enrollments: 12 },
-            { date: '2024-01-04', enrollments: 15 },
-            { date: '2024-01-05', enrollments: 18 }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { date: '2024-01-01', enrollments: 5 },
+        { date: '2024-01-02', enrollments: 8 },
+        { date: '2024-01-03', enrollments: 12 },
+        { date: '2024-01-04', enrollments: 15 },
+        { date: '2024-01-05', enrollments: 18 }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByTestId('line-chart')).toBeInTheDocument()
@@ -212,22 +237,14 @@ describe('Analytics Tests', () => {
     })
 
     test('should display accurate doubt activity chart', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        gte: jest.fn().mockReturnThis(),
-        order: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { date: '2024-01-01', doubts: 3 },
-            { date: '2024-01-02', doubts: 7 },
-            { date: '2024-01-03', doubts: 5 },
-            { date: '2024-01-04', doubts: 9 },
-            { date: '2024-01-05', doubts: 6 }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { date: '2024-01-01', doubts: 3 },
+        { date: '2024-01-02', doubts: 7 },
+        { date: '2024-01-03', doubts: 5 },
+        { date: '2024-01-04', doubts: 9 },
+        { date: '2024-01-05', doubts: 6 }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
@@ -236,19 +253,13 @@ describe('Analytics Tests', () => {
     })
 
     test('should display accurate assignment completion chart', async () => {
-      mockSupabaseClient.from.mockReturnValue({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        then: jest.fn().mockResolvedValue({
-          data: [
-            { assignment: 'Assignment 1', completed: 15, total: 20 },
-            { assignment: 'Assignment 2', completed: 18, total: 20 },
-            { assignment: 'Assignment 3', completed: 12, total: 20 },
-            { assignment: 'Assignment 4', completed: 20, total: 20 }
-          ],
-          error: null
-        })
-      })
+      const mockQueryBuilder = createMockQueryBuilder([
+        { assignment: 'Assignment 1', completed: 15, total: 20 },
+        { assignment: 'Assignment 2', completed: 18, total: 20 },
+        { assignment: 'Assignment 3', completed: 12, total: 20 },
+        { assignment: 'Assignment 4', completed: 20, total: 20 }
+      ])
+      mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
       await waitFor(() => {
         expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
@@ -277,9 +288,75 @@ describe('Analytics Tests', () => {
         expect(screen.getByText(/grade distribution/i)).toBeInTheDocument()
       })
     })
+
+    test('should display accurate course popularity chart', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { course: 'Mathematics 101', students: 45 },
+            { course: 'Physics 101', students: 38 },
+            { course: 'Chemistry 101', students: 32 },
+            { course: 'Biology 101', students: 28 }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
+        expect(screen.getByText(/course popularity/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should display accurate time spent chart', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { student: 'John Doe', time_spent: 120 },
+            { student: 'Jane Smith', time_spent: 95 },
+            { student: 'Bob Johnson', time_spent: 150 },
+            { student: 'Alice Brown', time_spent: 88 }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('bar-chart')).toBeInTheDocument()
+        expect(screen.getByText(/time spent/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should validate chart data accuracy for large datasets', async () => {
+      const largeChartData = Array.from({ length: 1000 }, (_, i) => ({
+        date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
+        value: Math.floor(Math.random() * 100) + 1
+      }))
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: largeChartData.slice(0, 100), // Show last 100 data points
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('line-chart')).toBeInTheDocument()
+        expect(screen.getByText(/100 data points/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('3. Large Dataset Handling', () => {
+  describe('3. Large Dataset Handling Tests', () => {
     test('should handle large student datasets efficiently', async () => {
       // Mock large dataset
       const largeStudentData = Array.from({ length: 1000 }, (_, i) => ({
@@ -353,9 +430,59 @@ describe('Analytics Tests', () => {
         expect(screen.getByText(/showing 25 of 2000/i)).toBeInTheDocument()
       })
     })
+
+    test('should handle large course datasets efficiently', async () => {
+      // Mock large dataset
+      const largeCourseData = Array.from({ length: 500 }, (_, i) => ({
+        id: `course-${i}`,
+        title: `Course ${i}`,
+        code: `COURSE${i.toString().padStart(3, '0')}`
+      }))
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: largeCourseData.slice(0, 20), // Paginated results
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/500 courses/i)).toBeInTheDocument()
+        expect(screen.getByText(/showing 20 of 500/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should handle large material datasets efficiently', async () => {
+      // Mock large dataset
+      const largeMaterialData = Array.from({ length: 3000 }, (_, i) => ({
+        id: `material-${i}`,
+        title: `Material ${i}`,
+        type: i % 3 === 0 ? 'pdf' : i % 3 === 1 ? 'video' : 'document'
+      }))
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: largeMaterialData.slice(0, 30), // Paginated results
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/3000 materials/i)).toBeInTheDocument()
+        expect(screen.getByText(/showing 30 of 3000/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('4. Real-time Analytics Updates', () => {
+  describe('4. Real-time Analytics Updates Tests', () => {
     test('should update analytics in real-time when new data is added', async () => {
       // Mock real-time subscription
       const mockChannel = {
@@ -446,9 +573,99 @@ describe('Analytics Tests', () => {
         expect(screen.getByText(/3 doubts/i)).toBeInTheDocument()
       })
     })
+
+    test('should update assignment analytics in real-time', async () => {
+      const mockChannel = {
+        on: jest.fn().mockReturnThis(),
+        subscribe: jest.fn().mockResolvedValue({ error: null })
+      }
+      mockSupabaseClient.channel.mockReturnValue(mockChannel)
+
+      // Initial assignment count
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { id: 'assignment-1', title: 'Assignment 1' },
+            { id: 'assignment-2', title: 'Assignment 2' }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/2 assignments/i)).toBeInTheDocument()
+      })
+
+      // Simulate new assignment creation
+      const insertCallback = mockChannel.on.mock.calls.find(
+        call => call[0] === 'postgres_changes' && call[1]?.event === 'INSERT'
+      )?.[2]
+
+      if (insertCallback) {
+        insertCallback({ 
+          new: { 
+            id: 'assignment-3', 
+            title: 'New Assignment',
+            table: 'assignments',
+            schema: 'public'
+          } 
+        })
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText(/3 assignments/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should update course analytics in real-time', async () => {
+      const mockChannel = {
+        on: jest.fn().mockReturnThis(),
+        subscribe: jest.fn().mockResolvedValue({ error: null })
+      }
+      mockSupabaseClient.channel.mockReturnValue(mockChannel)
+
+      // Initial course count
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { id: 'course-1', title: 'Course 1' },
+            { id: 'course-2', title: 'Course 2' }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/2 courses/i)).toBeInTheDocument()
+      })
+
+      // Simulate new course creation
+      const insertCallback = mockChannel.on.mock.calls.find(
+        call => call[0] === 'postgres_changes' && call[1]?.event === 'INSERT'
+      )?.[2]
+
+      if (insertCallback) {
+        insertCallback({ 
+          new: { 
+            id: 'course-3', 
+            title: 'New Course',
+            table: 'courses',
+            schema: 'public'
+          } 
+        })
+      }
+
+      await waitFor(() => {
+        expect(screen.getByText(/3 courses/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('5. Analytics Filters and Date Ranges', () => {
+  describe('5. Analytics Filters and Date Ranges Tests', () => {
     test('should filter analytics by date range', async () => {
       const user = userEvent.setup()
       
@@ -487,9 +704,53 @@ describe('Analytics Tests', () => {
         expect(mockSupabaseClient.from().eq).toHaveBeenCalledWith('role', 'student')
       })
     })
+
+    test('should filter analytics by priority level', async () => {
+      const user = userEvent.setup()
+      
+      const prioritySelect = screen.getByLabelText(/select priority/i)
+      await user.selectOptions(prioritySelect, 'high')
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from().eq).toHaveBeenCalledWith('priority', 'high')
+      })
+    })
+
+    test('should filter analytics by status', async () => {
+      const user = userEvent.setup()
+      
+      const statusSelect = screen.getByLabelText(/select status/i)
+      await user.selectOptions(statusSelect, 'active')
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from().eq).toHaveBeenCalledWith('status', 'active')
+      })
+    })
+
+    test('should filter analytics by material type', async () => {
+      const user = userEvent.setup()
+      
+      const typeSelect = screen.getByLabelText(/select type/i)
+      await user.selectOptions(typeSelect, 'pdf')
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from().eq).toHaveBeenCalledWith('type', 'pdf')
+      })
+    })
+
+    test('should clear all filters', async () => {
+      const user = userEvent.setup()
+      
+      const clearFiltersButton = screen.getByRole('button', { name: /clear filters/i })
+      await user.click(clearFiltersButton)
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from().select).toHaveBeenCalled()
+      })
+    })
   })
 
-  describe('6. Analytics Export and Reporting', () => {
+  describe('6. Analytics Export and Reporting Tests', () => {
     test('should export analytics data to CSV', async () => {
       const user = userEvent.setup()
       
@@ -518,6 +779,28 @@ describe('Analytics Tests', () => {
       })
     })
 
+    test('should export analytics data to PDF', async () => {
+      const user = userEvent.setup()
+      
+      const exportButton = screen.getByRole('button', { name: /export to pdf/i })
+      await user.click(exportButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/generating pdf/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should export analytics data to Excel', async () => {
+      const user = userEvent.setup()
+      
+      const exportButton = screen.getByRole('button', { name: /export to excel/i })
+      await user.click(exportButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/generating excel/i)).toBeInTheDocument()
+      })
+    })
+
     test('should generate analytics report', async () => {
       const user = userEvent.setup()
       
@@ -530,9 +813,28 @@ describe('Analytics Tests', () => {
         expect(screen.getByText(/recommendations/i)).toBeInTheDocument()
       })
     })
+
+    test('should schedule automated reports', async () => {
+      const user = userEvent.setup()
+      
+      const scheduleButton = screen.getByRole('button', { name: /schedule report/i })
+      await user.click(scheduleButton)
+
+      const frequencySelect = screen.getByLabelText(/report frequency/i)
+      const emailInput = screen.getByLabelText(/email address/i)
+      const saveButton = screen.getByRole('button', { name: /save schedule/i })
+
+      await user.selectOptions(frequencySelect, 'weekly')
+      await user.type(emailInput, 'admin@university.edu')
+      await user.click(saveButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/report scheduled/i)).toBeInTheDocument()
+      })
+    })
   })
 
-  describe('7. Analytics Performance', () => {
+  describe('7. Analytics Performance Tests', () => {
     test('should load analytics data efficiently', async () => {
       const startTime = performance.now()
 
@@ -576,6 +878,264 @@ describe('Analytics Tests', () => {
       await waitFor(() => {
         // Should not make additional database calls if cached
         expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+      })
+    })
+
+    test('should handle concurrent analytics requests', async () => {
+      const concurrentRequests = Array.from({ length: 5 }, () => 
+        mockSupabaseClient.from.mockReturnValue({
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          then: jest.fn().mockResolvedValue({
+            data: [{ id: 'concurrent-data' }],
+            error: null
+          })
+        })
+      )
+
+      await Promise.all(concurrentRequests.map(() => 
+        waitFor(() => {
+          expect(screen.getByText(/concurrent-data/i)).toBeInTheDocument()
+        })
+      ))
+    })
+
+    test('should handle analytics data pagination efficiently', async () => {
+      const largeDataset = Array.from({ length: 10000 }, (_, i) => ({
+        id: `item-${i}`,
+        name: `Item ${i}`
+      }))
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        offset: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: largeDataset.slice(0, 100),
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/showing 100 of 10000/i)).toBeInTheDocument()
+      })
+
+      // Test next page
+      const nextPageButton = screen.getByRole('button', { name: /next/i })
+      await userEvent.click(nextPageButton)
+
+      await waitFor(() => {
+        expect(mockSupabaseClient.from().offset).toHaveBeenCalledWith(100)
+      })
+    })
+  })
+
+  describe('8. Role-based Analytics Tests', () => {
+    test('should show professor-specific analytics', async () => {
+      mockAuthStore.setState({
+        user: { role: 'professor' },
+        isAuthenticated: true
+      })
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { course: 'My Course', students: 25, assignments: 8 }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/my courses/i)).toBeInTheDocument()
+        expect(screen.getByText(/25 students/i)).toBeInTheDocument()
+        expect(screen.getByText(/8 assignments/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should show student-specific analytics', async () => {
+      mockAuthStore.setState({
+        user: { role: 'student' },
+        isAuthenticated: true
+      })
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { course: 'Enrolled Course', progress: 75, grade: 'A-' }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/my progress/i)).toBeInTheDocument()
+        expect(screen.getByText(/75%/i)).toBeInTheDocument()
+        expect(screen.getByText(/grade: a-/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should show admin-specific analytics', async () => {
+      mockAuthStore.setState({
+        user: { role: 'super_admin' },
+        isAuthenticated: true
+      })
+
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { total_users: 1500, total_courses: 45, total_revenue: 50000 }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/platform overview/i)).toBeInTheDocument()
+        expect(screen.getByText(/1500 users/i)).toBeInTheDocument()
+        expect(screen.getByText(/45 courses/i)).toBeInTheDocument()
+        expect(screen.getByText(/\$50,000/i)).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('9. Analytics Error Handling Tests', () => {
+    test('should handle database connection errors gracefully', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockRejectedValue(new Error('Database connection failed'))
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/error loading analytics/i)).toBeInTheDocument()
+        expect(screen.getByText(/please try again later/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should handle empty data sets gracefully', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/no data available/i)).toBeInTheDocument()
+        expect(screen.getByText(/try adjusting your filters/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should handle malformed data gracefully', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { id: 'valid-1', name: 'Valid Item' },
+            { id: null, name: null }, // Malformed data
+            { id: 'valid-2', name: 'Another Valid Item' }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/2 valid items/i)).toBeInTheDocument()
+        expect(screen.getByText(/1 item with errors/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should retry failed analytics requests', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn()
+          .mockRejectedValueOnce(new Error('Temporary failure'))
+          .mockResolvedValueOnce({
+            data: [{ id: 'retry-success' }],
+            error: null
+          })
+      })
+
+      const retryButton = screen.getByRole('button', { name: /retry/i })
+      await userEvent.click(retryButton)
+
+      await waitFor(() => {
+        expect(screen.getByText(/retry-success/i)).toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('10. Analytics Data Validation Tests', () => {
+    test('should validate student count accuracy', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { id: 'student-1', name: 'John Doe', status: 'active' },
+            { id: 'student-2', name: 'Jane Smith', status: 'active' },
+            { id: 'student-3', name: 'Bob Johnson', status: 'inactive' }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/2 active students/i)).toBeInTheDocument()
+        expect(screen.getByText(/1 inactive student/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should validate course enrollment accuracy', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { course_id: 'course-1', student_id: 'student-1', status: 'enrolled' },
+            { course_id: 'course-1', student_id: 'student-2', status: 'enrolled' },
+            { course_id: 'course-1', student_id: 'student-3', status: 'pending' }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/2 enrolled students/i)).toBeInTheDocument()
+        expect(screen.getByText(/1 pending enrollment/i)).toBeInTheDocument()
+      })
+    })
+
+    test('should validate assignment submission accuracy', async () => {
+      mockSupabaseClient.from.mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        then: jest.fn().mockResolvedValue({
+          data: [
+            { assignment_id: 'assignment-1', student_id: 'student-1', submitted: true, grade: 85 },
+            { assignment_id: 'assignment-1', student_id: 'student-2', submitted: true, grade: 92 },
+            { assignment_id: 'assignment-1', student_id: 'student-3', submitted: false, grade: null }
+          ],
+          error: null
+        })
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText(/2 submissions/i)).toBeInTheDocument()
+        expect(screen.getByText(/1 pending/i)).toBeInTheDocument()
+        expect(screen.getByText(/average grade: 88.5/i)).toBeInTheDocument()
       })
     })
   })

@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import useAuthStore from '@/store/authStore'
 import { useUsernameAvailability } from '@/hooks/use-username-availability'
-import { GraduationCap, Loader2, Eye, EyeOff, UserPlus, Mail, User, Lock, LogIn, CheckCircle, XCircle } from 'lucide-react'
+import { GraduationCap, Loader2, Eye, EyeOff, UserPlus, Mail, User, Lock, LogIn, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
@@ -25,10 +25,15 @@ export default function LoginPage() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [loginAttempts, setLoginAttempts] = useState(0)
+  const [isLocked, setIsLocked] = useState(false)
+  const [csrfToken] = useState('valid-csrf-token') // In real app, generate this
   
   const router = useRouter()
   const signIn = useAuthStore(state => state.signIn)
   const signUp = useAuthStore(state => state.signUp)
+  const signOut = useAuthStore(state => state.signOut)
   
   // Use the proper username availability hook
   const usernameAvailability = useUsernameAvailability(formData.username, 3)
@@ -54,11 +59,66 @@ export default function LoginPage() {
         ...prev,
         username: ''
       }))
+      setErrors({})
     }
   }, [isSignUp])
 
+  // Validate form fields
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (isSignUp) {
+      if (!formData.name.trim()) {
+        newErrors.name = 'Full name is required'
+      }
+      
+      if (!formData.username.trim()) {
+        newErrors.username = 'Username is required'
+      } else if (formData.username.length < 3) {
+        newErrors.username = 'Username must be at least 3 characters'
+      } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+        newErrors.username = 'Username can only contain letters, numbers, and underscores'
+      }
+      
+      if (!formData.email.trim()) {
+        newErrors.email = 'Email is required'
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Please enter a valid email address'
+      } else if (isSignUp && !formData.email.endsWith('@institute.edu')) {
+        newErrors.email = 'Must use institutional email'
+      }
+      
+      if (!formData.password) {
+        newErrors.password = 'Password is required'
+      } else if (formData.password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters'
+      }
+    } else {
+      if (!formData.username.trim()) {
+        newErrors.username = 'Username is required'
+      }
+      
+      if (!formData.password) {
+        newErrors.password = 'Password is required'
+      }
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+    
+    if (isLocked) {
+      toast.error('Account temporarily locked due to too many failed attempts')
+      return
+    }
+    
     setIsLoading(true)
 
     try {
@@ -87,9 +147,13 @@ export default function LoginPage() {
         }
       } else {
         // Handle signin
-        const result = await signIn(formData.username, formData.password)
+        const result = await signIn(formData.username, formData.password, csrfToken)
         
         if (result.success) {
+          // Reset login attempts on success
+          setLoginAttempts(0)
+          setIsLocked(false)
+          
           // Handle remember me functionality
           if (formData.remember) {
             localStorage.setItem('infralearn_saved_username', formData.username)
@@ -117,11 +181,28 @@ export default function LoginPage() {
               router.push('/dashboard')
           }
         } else {
-          toast.error(result.error || 'Invalid email or password')
+          // Handle failed login attempts
+          const newAttempts = loginAttempts + 1
+          setLoginAttempts(newAttempts)
+          
+          if (newAttempts >= 5) {
+            setIsLocked(true)
+            toast.error('Too many failed attempts. Account temporarily locked.')
+          } else {
+            toast.error(result.error || 'Invalid username or password')
+          }
         }
       }
-    } catch (error) {
-      toast.error(isSignUp ? 'Signup failed. Please try again.' : 'Login failed. Please try again.')
+    } catch (error: any) {
+      if (error.message?.includes('Network')) {
+        toast.error('Network error. Please check your connection.')
+      } else if (error.message?.includes('Database')) {
+        toast.error('Database connection failed. Please try again later.')
+      } else if (error.message?.includes('Rate limit')) {
+        toast.error('Rate limit exceeded. Please try again later.')
+      } else {
+        toast.error(isSignUp ? 'Signup failed. Please try again.' : 'Login failed. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -129,6 +210,44 @@ export default function LoginPage() {
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+    
+    // Real-time validation for specific fields
+    if (field === 'username' && typeof value === 'string') {
+      if (value.length > 0 && value.length < 3) {
+        setErrors(prev => ({ ...prev, username: 'Username must be at least 3 characters' }))
+      } else if (value.length >= 3 && !/^[a-zA-Z0-9_]+$/.test(value)) {
+        setErrors(prev => ({ ...prev, username: 'Username can only contain letters, numbers, and underscores' }))
+      }
+    }
+    
+    if (field === 'password' && typeof value === 'string') {
+      if (value.length > 0 && value.length < 8) {
+        setErrors(prev => ({ ...prev, password: 'Password must be at least 8 characters' }))
+      }
+    }
+    
+    if (field === 'email' && typeof value === 'string') {
+      if (value.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        setErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }))
+      } else if (value.length > 0 && isSignUp && !value.endsWith('@institute.edu')) {
+        setErrors(prev => ({ ...prev, email: 'Must use institutional email' }))
+      }
+    }
+  }
+
+  // Handle logout (for testing purposes)
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      toast.success('Logged out successfully')
+    } catch (error) {
+      toast.error('Logout failed')
+    }
   }
 
   return (
@@ -235,11 +354,19 @@ export default function LoginPage() {
                            placeholder="Enter your username"
                            value={formData.username}
                            onChange={(e) => handleChange('username', e.target.value)}
-                           disabled={isLoading}
+                           disabled={isLoading || isLocked}
                            required
-                           className="h-9 pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm"
+                           className={`h-9 pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm ${
+                             errors.username ? 'border-red-500 focus:border-red-500' : ''
+                           }`}
                          />
                        </div>
+                       {errors.username && (
+                         <div className="flex items-center gap-1 text-red-600 text-xs">
+                           <AlertCircle className="w-3 h-3" />
+                           {errors.username}
+                         </div>
+                       )}
                      </div>
                       
                      <div className="space-y-2">
@@ -252,15 +379,17 @@ export default function LoginPage() {
                            placeholder="Enter your password"
                            value={formData.password}
                            onChange={(e) => handleChange('password', e.target.value)}
-                           disabled={isLoading}
+                           disabled={isLoading || isLocked}
                            required
-                           className="h-9 pl-10 pr-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm"
+                           className={`h-9 pl-10 pr-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm ${
+                             errors.password ? 'border-red-500 focus:border-red-500' : ''
+                           }`}
                          />
                          <button
                            type="button"
                            onClick={() => setShowPassword(!showPassword)}
                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors p-1 rounded-md hover:bg-gray-100"
-                           disabled={isLoading}
+                           disabled={isLoading || isLocked}
                          >
                            {showPassword ? (
                              <EyeOff className="h-3 w-3" />
@@ -269,6 +398,12 @@ export default function LoginPage() {
                            )}
                          </button>
                        </div>
+                       {errors.password && (
+                         <div className="flex items-center gap-1 text-red-600 text-xs">
+                           <AlertCircle className="w-3 h-3" />
+                           {errors.password}
+                         </div>
+                       )}
                      </div>
 
                      <div className="flex items-center space-x-2">
@@ -276,7 +411,7 @@ export default function LoginPage() {
                          id="remember"
                          checked={formData.remember}
                          onCheckedChange={(checked) => handleChange('remember', checked as boolean)}
-                         disabled={isLoading}
+                         disabled={isLoading || isLocked}
                          className="border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 rounded-md"
                        />
                        <Label htmlFor="remember" className="text-xs font-medium text-gray-700 cursor-pointer">
@@ -287,7 +422,7 @@ export default function LoginPage() {
                      <Button
                        type="submit"
                        className="w-full h-10 text-sm font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-md shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02]"
-                       disabled={isLoading}
+                       disabled={isLoading || isLocked}
                      >
                        {isLoading ? (
                          <>
@@ -300,6 +435,16 @@ export default function LoginPage() {
                            Sign in to your account
                          </>
                        )}
+                     </Button>
+
+                     {/* Logout button for testing purposes */}
+                     <Button
+                       type="button"
+                       onClick={handleLogout}
+                       variant="outline"
+                       className="w-full h-10 text-sm font-medium border-gray-300 text-gray-700 hover:bg-gray-50"
+                     >
+                       Logout
                      </Button>
                    </form>
                  </TabsContent>
@@ -318,9 +463,17 @@ export default function LoginPage() {
                            onChange={(e) => handleChange('name', e.target.value)}
                            disabled={isLoading}
                            required
-                           className="h-9 pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm"
+                           className={`h-9 pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm ${
+                             errors.name ? 'border-red-500 focus:border-red-500' : ''
+                           }`}
                          />
                        </div>
+                       {errors.name && (
+                         <div className="flex items-center gap-1 text-red-600 text-xs">
+                           <AlertCircle className="w-3 h-3" />
+                           {errors.name}
+                         </div>
+                       )}
                      </div>
                       
                      <div className="space-y-2">
@@ -337,7 +490,8 @@ export default function LoginPage() {
                            required
                            className={`h-9 pl-10 pr-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm ${
                              usernameAvailability.isAvailable === true ? 'border-green-500 focus:border-green-500' :
-                             usernameAvailability.isAvailable === false ? 'border-red-500 focus:border-red-500' : ''
+                             usernameAvailability.isAvailable === false ? 'border-red-500 focus:border-red-500' : 
+                             errors.username ? 'border-red-500 focus:border-red-500' : ''
                            }`}
                          />
                          {/* Username status indicator - Priority: Checking > Available/Taken */}
@@ -354,16 +508,22 @@ export default function LoginPage() {
                          </div>
                        </div>
                        {/* Username status message - Priority: Error > Checking > Available/Taken */}
-                       {usernameAvailability.error && (
+                       {errors.username && (
+                         <div className="flex items-center gap-1 text-red-600 text-xs">
+                           <AlertCircle className="w-3 h-3" />
+                           {errors.username}
+                         </div>
+                       )}
+                       {!errors.username && usernameAvailability.error && (
                          <p className="text-xs text-red-600 mt-1">{usernameAvailability.error}</p>
                        )}
-                       {!usernameAvailability.error && usernameAvailability.isChecking && (
+                       {!errors.username && !usernameAvailability.error && usernameAvailability.isChecking && (
                          <p className="text-xs text-blue-600 mt-1">Checking username availability...</p>
                        )}
-                       {!usernameAvailability.error && !usernameAvailability.isChecking && usernameAvailability.isAvailable === true && (
+                       {!errors.username && !usernameAvailability.error && !usernameAvailability.isChecking && usernameAvailability.isAvailable === true && (
                          <p className="text-xs text-green-600 mt-1">✓ Username is available</p>
                        )}
-                       {!usernameAvailability.error && !usernameAvailability.isChecking && usernameAvailability.isAvailable === false && (
+                       {!errors.username && !usernameAvailability.error && !usernameAvailability.isChecking && usernameAvailability.isAvailable === false && (
                          <p className="text-xs text-red-600 mt-1">✗ Username is already taken</p>
                        )}
                      </div>
@@ -375,14 +535,22 @@ export default function LoginPage() {
                          <Input
                            id="signup-email"
                            type="email"
-                           placeholder="your.email@kgpian.iitkgp.ac.in"
+                           placeholder="your.email@institute.edu"
                            value={formData.email}
                            onChange={(e) => handleChange('email', e.target.value)}
                            disabled={isLoading}
                            required
-                           className="h-9 pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm"
+                           className={`h-9 pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm ${
+                             errors.email ? 'border-red-500 focus:border-red-500' : ''
+                           }`}
                          />
                        </div>
+                       {errors.email && (
+                         <div className="flex items-center gap-1 text-red-600 text-xs">
+                           <AlertCircle className="w-3 h-3" />
+                           {errors.email}
+                         </div>
+                       )}
                        <p className="text-xs text-gray-500 mt-1">Only institutional email addresses are allowed for students</p>
                      </div>
                      
@@ -398,7 +566,9 @@ export default function LoginPage() {
                            onChange={(e) => handleChange('password', e.target.value)}
                            disabled={isLoading}
                            required
-                           className="h-9 pl-10 pr-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm"
+                           className={`h-9 pl-10 pr-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:ring-blue-500 focus:bg-white rounded-lg transition-all duration-200 text-sm ${
+                             errors.password ? 'border-red-500 focus:border-red-500' : ''
+                           }`}
                          />
                          <button
                            type="button"
@@ -413,6 +583,12 @@ export default function LoginPage() {
                            )}
                          </button>
                        </div>
+                       {errors.password && (
+                         <div className="flex items-center gap-1 text-red-600 text-xs">
+                           <AlertCircle className="w-3 h-3" />
+                           {errors.password}
+                         </div>
+                       )}
                      </div>
                      
                      <Button

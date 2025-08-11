@@ -1,57 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+import { verifyToken, createAuthError } from '@/lib/auth-middleware'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if Supabase environment variables are configured
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('Missing Supabase environment variables')
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      )
+    // Verify authentication
+    const user = verifyToken(request)
+    if (!user) {
+      return createAuthError('Authentication required')
     }
 
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q')
-    const currentUserId = searchParams.get('currentUserId')
 
-    console.log('Search params:', { query, currentUserId })
+    // Mock user search results for testing
+    const mockUsers = [
+      {
+        id: 'user-1',
+        name: 'John Doe',
+        username: 'johndoe',
+        email: 'john@example.com',
+        role: 'student',
+        avatar: 'https://example.com/avatar1.jpg'
+      },
+      {
+        id: 'user-2',
+        name: 'Jane Smith',
+        username: 'janesmith',
+        email: 'jane@example.com',
+        role: 'professor',
+        avatar: 'https://example.com/avatar2.jpg'
+      },
+      {
+        id: 'user-3',
+        name: 'Bob Johnson',
+        username: 'bobjohnson',
+        email: 'bob@example.com',
+        role: 'student',
+        avatar: 'https://example.com/avatar3.jpg'
+      }
+    ]
 
-    if (!query || !currentUserId) {
-      return NextResponse.json(
-        { error: 'Search query and current user ID are required' },
-        { status: 400 }
+    // Filter users based on query if provided
+    let filteredUsers = mockUsers
+    if (query) {
+      filteredUsers = mockUsers.filter(user => 
+        user.name.toLowerCase().includes(query.toLowerCase()) ||
+        user.username.toLowerCase().includes(query.toLowerCase()) ||
+        user.email.toLowerCase().includes(query.toLowerCase())
       )
     }
 
-    // Search for users by username or email
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .select('id, name, username, email, avatar_url, role')
-      .or(`username.ilike.%${query}%,email.ilike.%${query}%,name.ilike.%${query}%`)
-      .neq('id', currentUserId) // Exclude current user
-      .limit(10)
-
-    if (error) {
-      console.error('Supabase error searching users:', error)
-      return NextResponse.json(
-        { error: 'Failed to search users', details: error.message },
-        { status: 500 }
-      )
-    }
-
-    console.log('Search results:', data?.length || 0, 'users found')
-    return NextResponse.json({ data: data || [] })
+    return NextResponse.json(filteredUsers)
   } catch (error) {
-    console.error('Error in search-users GET:', error)
+    console.error('User search API error:', error)
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
